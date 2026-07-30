@@ -227,7 +227,20 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC"
       </div>
     </div>
     <div class="page" id="page-timeline">
-      <div class="timeline-header"><h2>我的旅行时间线</h2><button class="add-manual-btn" onclick="showAddModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>手动添加</button></div>
+      <div class="timeline-header"><h2>我的旅行时间线</h2><div style="display:flex;gap:6px"><button class="header-btn" onclick="exportData()" title="导出数据" style="width:32px;height:32px;border:none;background:var(--bg);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px">📤</button><button class="add-manual-btn" onclick="showAddModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>手动添加</button></div></div>
+      <div id="timeline-stats" class="stats-row" style="display:none">
+        <div class="stat-pill"><div class="num" id="tl-total">0</div><div class="label">总计划</div></div>
+        <div class="stat-pill"><div class="num" id="tl-pending">0</div><div class="label">待打卡</div></div>
+        <div class="stat-pill"><div class="num" id="tl-done">0</div><div class="label">已打卡</div></div>
+      </div>
+      <div id="timeline-filter" class="filter-chips" style="display:none">
+        <span class="chip active" data-filter="all" onclick="filterTimeline('all',this)">全部</span>
+        <span class="chip" data-filter="food" onclick="filterTimeline('food',this)">吃</span>
+        <span class="chip" data-filter="scenic" onclick="filterTimeline('scenic',this)">玩</span>
+        <span class="chip" data-filter="hotel" onclick="filterTimeline('hotel',this)">住</span>
+        <span class="chip" data-filter="pending" onclick="filterTimeline('pending',this)">待打卡</span>
+        <span class="chip" data-filter="done" onclick="filterTimeline('done',this)">已打卡</span>
+      </div>
       <div id="timeline-content">
         <div class="empty-state"><div class="icon">📅</div><p>还没有旅行打卡计划</p><p style="font-size:12px;margin-top:4px">搜索城市后一键添加，或手动创建</p></div>
       </div>
@@ -1166,7 +1179,19 @@ function saveManual(){
 }
 function renderTimeline(){
   var sorted=timelineData.slice().sort(function(a,b){return(b.date||'').localeCompare(a.date||'')});
-  if(!sorted.length){document.getElementById('timeline-content').innerHTML='<div class="empty-state"><div class="icon">📅</div><p>还没有旅行打卡计划</p></div>';return}
+  if(tlFilter==='food')sorted=sorted.filter(function(r){return r.type==='food'});
+  else if(tlFilter==='scenic')sorted=sorted.filter(function(r){return r.type==='scenic'});
+  else if(tlFilter==='hotel')sorted=sorted.filter(function(r){return r.type==='hotel'});
+  else if(tlFilter==='pending')sorted=sorted.filter(function(r){return r.status==='pending'});
+  else if(tlFilter==='done')sorted=sorted.filter(function(r){return r.status==='done'});
+  var statsEl=document.getElementById('timeline-stats');var filterEl=document.getElementById('timeline-filter');
+  if(timelineData.length>0){
+    statsEl.style.display='flex';filterEl.style.display='flex';
+    document.getElementById('tl-total').textContent=timelineData.length;
+    document.getElementById('tl-pending').textContent=timelineData.filter(function(r){return r.status==='pending'}).length;
+    document.getElementById('tl-done').textContent=timelineData.filter(function(r){return r.status==='done'}).length;
+  }else{statsEl.style.display='none';filterEl.style.display='none'}
+  if(!sorted.length){document.getElementById('timeline-content').innerHTML='<div class="empty-state"><div class="icon">📅</div><p>'+(timelineData.length?'当前筛选无结果':'还没有旅行打卡计划')+'</p></div>';return}
   var groups={};for(var i=0;i<sorted.length;i++){var d=sorted[i].date||'未定日期';if(!groups[d])groups[d]=[];groups[d].push(sorted[i])}
   var dates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a)});
   var html='';
@@ -1260,7 +1285,7 @@ function exportData(){
   for(var i=0;i<timelineData.length;i++){var r=timelineData[i];csv+='"'+(r.city||'').replace(/"/g,'""')+'","'+(r.name||'').replace(/"/g,'""')+'",'+(typeMap[r.type]||r.type)+','+(r.date||'')+', '+(r.startTime||'')+', '+(r.endTime||'')+',"'+(r.note||'').replace(/"/g,'""')+'","'+(r.reason||'').replace(/"/g,'""')+'",'+(r.status==='done'?'已打卡':'待打卡')+'\n'}
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='旅行打卡_'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('导出成功');
 }
-function switchTab(tab,btn){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.getElementById('page-'+tab).classList.add('active');document.querySelectorAll('.tab-item').forEach(function(b){b.classList.remove('active')});btn.classList.add('active')}
+function switchTab(tab,btn){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.getElementById('page-'+tab).classList.add('active');document.querySelectorAll('.tab-item').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');var header=document.querySelector('.header');if(tab==='timeline'){header.style.display='none'}else{header.style.display=''}}
 function openModal(id){document.getElementById(id).classList.add('show')}
 function closeModal(id){document.getElementById(id).classList.remove('show')}
 function esc(s){if(!s)return '';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
