@@ -1210,7 +1210,7 @@ function renderTimeline(){
 
   // 按日期分组
   var groups={};for(var i=0;i<sorted.length;i++){var d=sorted[i].date||'未定日期';if(!groups[d])groups[d]=[];groups[d].push(sorted[i])}
-  var allDates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a)});
+  var allDates=Object.keys(groups).sort(function(a,b){return a.localeCompare(b)});
 
   // 近8天：从今天往后推8天（今天+未来8天）
   var today=new Date();var todayStr=today.toISOString().slice(0,10);var recent8=[];
@@ -1224,8 +1224,10 @@ function renderTimeline(){
   // 顶部搜索栏：文本搜索地点名/城市名 + 日期选择器
   html+='<div class="tl-date-search">';
   html+='<input id="tl-search-input" placeholder="搜索地点或城市名" value="'+esc(searchKw)+'">';
+  html+='<div style="position:relative;display:flex;align-items:center">';
   html+='<input id="tl-date-picker" type="date" value="'+esc(searchDate)+'" onchange="doTimelineDateSearch(this.value)" title="按日期搜索" style="width:36px;min-width:36px;padding:8px;border-radius:20px;border:1px solid var(--border);cursor:pointer;font-size:14px">';
-  html+='</div>';
+  if(!searchDate)html+='<span style="position:absolute;right:8px;font-size:11px;color:var(--text-light);pointer-events:none;white-space:nowrap">按日期搜</span>';
+  html+='</div></div>';
 
   var displayDates=[];
   if(searchKw){
