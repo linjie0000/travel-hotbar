@@ -1239,7 +1239,7 @@ function renderTimeline(){
   }else{
     html+='<button class="tl-date-search-btn" onclick="triggerDatePick()"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg>按日期搜</button>';
   }
-  html+='<input id="tl-date-picker" type="date" value="'+esc(searchDate)+'" onchange="doTimelineDateSearch(this.value)" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none">';
+  html+='<input id="tl-date-picker" type="date" onchange="doTimelineDateSearch(this.value)" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">';
   html+='</div>';
 
   var displayDates=[];
@@ -1319,7 +1319,7 @@ function clearTimelineDateSearch(){
   renderTimeline();
 }
 function triggerDatePick(){
-  var dp=document.getElementById('tl-date-picker');if(dp)dp.showPicker?dp.showPicker():dp.click();
+  var dp=document.getElementById('tl-date-picker');if(dp){dp.value='';if(dp.showPicker)dp.showPicker();else dp.focus(),dp.click();}
 }
 
 // 日期分组收起/展开
