@@ -123,15 +123,20 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC"
 .tl-date-search-btn svg{width:16px;height:16px;flex-shrink:0}
 .tl-date-search-btn.active{border-color:var(--blue);background:#EFF6FF;color:var(--blue)}
 .tl-date-search-btn .date-clear{margin-left:2px;width:16px;height:16px;border-radius:50%;background:var(--blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;line-height:1;font-weight:700}
-.tl-date-input{display:inline-flex;align-items:center;padding:8px 12px;border-radius:20px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap;transition:all .15s;width:auto;flex:none;line-height:1.2;height:36px;box-sizing:border-box}
+.tl-date-input{display:inline-flex;align-items:center;padding:8px 12px;border-radius:20px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap;transition:all .15s;width:auto;flex:none;height:36px;box-sizing:border-box;-webkit-appearance:none;appearance:none}
 .tl-date-input:active{transform:scale(.95)}
-.tl-date-input::-webkit-calendar-picker-indicator{opacity:1;cursor:pointer}
-.tl-date-input::-webkit-datetime-edit{padding:0}
-.tl-date-input::-webkit-date-and-time-value{}
-.tl-date-input:invalid::-webkit-datetime-edit{color:var(--text-light)}
 .tl-date-wrap{position:relative;display:inline-flex;align-items:center}
-.tl-date-wrap .date-placeholder{position:absolute;left:12px;font-size:13px;color:var(--text-light);pointer-events:none;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.tl-date-wrap .date-placeholder{position:absolute;left:12px;font-size:13px;color:var(--text-light);pointer-events:none;white-space:nowrap;display:flex;align-items:center;gap:4px;z-index:1}
 .tl-date-wrap .date-placeholder svg{width:14px;height:14px}
+.tl-date-custom{display:none;gap:6px;align-items:center;flex:none}
+.tl-date-custom select{border:1px solid var(--border);border-radius:20px;padding:6px 10px;font-size:13px;background:var(--white);outline:none;height:36px;box-sizing:border-box;-webkit-appearance:none;appearance:none}
+.tl-date-custom select:focus{border-color:var(--red)}
+.tl-date-custom .dc-year{width:72px}
+.tl-date-custom .dc-month{width:56px}
+.tl-date-custom .dc-day{width:56px}
+.tl-date-custom .dc-go{background:var(--red);color:#fff;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;height:36px;box-sizing:border-box}
+.tl-date-custom .dc-go:active{opacity:.8}
+.tl-date-custom .dc-cancel{background:var(--bg);color:var(--text);border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;height:36px;box-sizing:border-box}
 .tl-search-result-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--red-light);color:var(--red);border-radius:14px;font-size:12px;font-weight:600;margin-bottom:8px}
 .tl-search-result-tag button{background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;font-weight:700;padding:0 0 0 4px}
 .tl-card{background:var(--white);border-radius:12px;padding:12px;margin-bottom:6px;position:relative;border-left:3px solid var(--blue)}
@@ -1246,7 +1251,14 @@ function renderTimeline(){
   if(searchDate){
     html+='<button class="tl-date-search-btn active" onclick="clearTimelineDateSearch()"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg>'+esc(searchDate)+'<span class=\"date-clear\">&times;</span></button>';
   }else{
-    html+='<div class="tl-date-wrap"><span class="date-placeholder"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg>按日期搜</span><input id="tl-date-picker" type="date" class="tl-date-input" onchange="doTimelineDateSearch(this.value);if(this.value)this.previousElementSibling.style.display=\'none\';else this.previousElementSibling.style.display=\'\'" onclick="this.value=\'\'" style="color:transparent"></div>';
+    // 自定义年月日下拉选择器，避免手机端date input自动选中今天
+    var nowY=new Date().getFullYear(),nowM=new Date().getMonth()+1,nowD=new Date().getDate();
+    var yOpts='',mOpts='',dOpts='';
+    for(var yi=nowY-1;yi<=nowY+1;yi++){yOpts+='<option value="'+yi+'"'+(yi===nowY?' selected':'')+'>'+yi+'</option>'}
+    for(var mi=1;mi<=12;mi++){mOpts+='<option value="'+(mi<10?'0'+mi:mi)+'"'+(mi===nowM?' selected':'')+'>'+mi+'月</option>'}
+    for(var di=1;di<=31;di++){dOpts+='<option value="'+(di<10?'0'+di:di)+'"'+(di===nowD?' selected':'')+'>'+di+'日</option>'}
+    html+='<div class="tl-date-wrap" id="tl-date-wrap"><button class="tl-date-search-btn" onclick="showDateCustom()"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg>按日期搜</button></div>';
+    html+='<div class="tl-date-custom" id="tl-date-custom"><select class="dc-year" id="dc-year">'+yOpts+'</select><select class="dc-month" id="dc-month">'+mOpts+'</select><select class="dc-day" id="dc-day">'+dOpts+'</select><button class="dc-go" onclick="confirmDateCustom()">确定</button><button class="dc-cancel" onclick="cancelDateCustom()">取消</button></div>';
   }
   html+='</div>';
 
@@ -1304,9 +1316,6 @@ function renderTimeline(){
   // 搜索框回车
   var searchInput=document.getElementById('tl-search-input');
   if(searchInput){searchInput.addEventListener('keydown',function(e){if(e.key==='Enter')doTimelineSearch()})}
-  // 日期input有值时显示日期文本
-  var dpEl=document.getElementById('tl-date-picker');
-  if(dpEl&&dpEl.value){dpEl.style.color='';var ph=dpEl.previousElementSibling;if(ph)ph.style.display='none'}
 }
 
 // 时间线文本搜索
@@ -1331,6 +1340,22 @@ function clearTimelineDateSearch(){
 }
 function triggerDatePick(){
   var dp=document.getElementById('tl-date-picker');if(dp){dp.value='';if(dp.showPicker)dp.showPicker();else dp.focus(),dp.click();}
+}
+function showDateCustom(){
+  var w=document.getElementById('tl-date-wrap');var c=document.getElementById('tl-date-custom');
+  if(w)w.style.display='none';if(c)c.style.display='inline-flex';
+}
+function confirmDateCustom(){
+  var y=document.getElementById('dc-year').value;
+  var m=document.getElementById('dc-month').value;
+  var d=document.getElementById('dc-day').value;
+  var val=y+'-'+m+'-'+d;
+  window._tlSearchDate=val;window._tlSearchKw='';
+  renderTimeline();
+}
+function cancelDateCustom(){
+  var w=document.getElementById('tl-date-wrap');var c=document.getElementById('tl-date-custom');
+  if(w)w.style.display='';if(c)c.style.display='none';
 }
 
 // 日期分组收起/展开
