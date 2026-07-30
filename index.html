@@ -118,6 +118,11 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC"
 .tl-date-search .search-go{background:var(--red);color:#fff}
 .tl-date-search .search-go:active{opacity:.8}
 .tl-date-search .search-clear{background:var(--bg);color:var(--text)}
+.tl-date-search-btn{position:relative;display:flex;align-items:center;gap:4px;padding:7px 12px;border-radius:20px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap;transition:all .15s}
+.tl-date-search-btn:active{transform:scale(.95)}
+.tl-date-search-btn svg{width:16px;height:16px;flex-shrink:0}
+.tl-date-search-btn.active{border-color:var(--blue);background:#EFF6FF;color:var(--blue)}
+.tl-date-search-btn .date-clear{margin-left:2px;width:16px;height:16px;border-radius:50%;background:var(--blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;line-height:1;font-weight:700}
 .tl-search-result-tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--red-light);color:var(--red);border-radius:14px;font-size:12px;font-weight:600;margin-bottom:8px}
 .tl-search-result-tag button{background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;font-weight:700;padding:0 0 0 4px}
 .tl-card{background:var(--white);border-radius:12px;padding:12px;margin-bottom:6px;position:relative;border-left:3px solid var(--blue)}
@@ -1193,7 +1198,12 @@ function saveManual(){
   switchTab('timeline',document.querySelector('[data-tab="timeline"]'));
 }
 function renderTimeline(){
-  var sorted=timelineData.slice().sort(function(a,b){return(b.date||'').localeCompare(a.date||'')});
+  // 渲染前记住当前日期分组的折叠状态
+  if(!window._tlCollapsedDates)window._tlCollapsedDates={};
+  var oldGroups=document.querySelectorAll('.date-group');
+  for(var gi=0;gi<oldGroups.length;gi++){var gk=oldGroups[gi].getAttribute('data-date');var gbody=oldGroups[gi].querySelector('.date-group-body');if(gbody&&gbody.classList.contains('collapsed')){window._tlCollapsedDates[gk]=true}else{delete window._tlCollapsedDates[gk]}}
+
+  var sorted=timelineData.slice().sort(function(a,b){return(a.date||'').localeCompare(b.date||'')});
   if(tlFilter==='food')sorted=sorted.filter(function(r){return r.type==='food'});
   else if(tlFilter==='scenic')sorted=sorted.filter(function(r){return r.type==='scenic'});
   else if(tlFilter==='hotel')sorted=sorted.filter(function(r){return r.type==='hotel'});
@@ -1221,13 +1231,16 @@ function renderTimeline(){
   var searchDate=(window._tlSearchDate||'').trim();
   var html='';
 
-  // 顶部搜索栏：文本搜索地点名/城市名 + 日期选择器
+  // 顶部搜索栏：文本搜索地点名/城市名 + 日期搜索按钮
   html+='<div class="tl-date-search">';
   html+='<input id="tl-search-input" placeholder="搜索地点或城市名" value="'+esc(searchKw)+'">';
-  html+='<div style="position:relative;display:flex;align-items:center">';
-  html+='<input id="tl-date-picker" type="date" value="'+esc(searchDate)+'" onchange="doTimelineDateSearch(this.value)" title="按日期搜索" style="width:36px;min-width:36px;padding:8px;border-radius:20px;border:1px solid var(--border);cursor:pointer;font-size:14px">';
-  if(!searchDate)html+='<span style="position:absolute;right:8px;font-size:11px;color:var(--text-light);pointer-events:none;white-space:nowrap">按日期搜</span>';
-  html+='</div></div>';
+  if(searchDate){
+    html+='<button class="tl-date-search-btn active" onclick="clearTimelineDateSearch()"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg>'+esc(searchDate)+'<span class=\"date-clear\">&times;</span></button>';
+  }else{
+    html+='<button class="tl-date-search-btn" onclick="triggerDatePick()"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg>按日期搜</button>';
+  }
+  html+='<input id="tl-date-picker" type="date" value="'+esc(searchDate)+'" onchange="doTimelineDateSearch(this.value)" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none">';
+  html+='</div>';
 
   var displayDates=[];
   if(searchKw){
@@ -1262,9 +1275,10 @@ function renderTimeline(){
     if(!isToday&&dateKey!=='未定日期'){var tm=new Date(today);tm.setDate(tm.getDate()+1);if(dateKey===tm.toISOString().slice(0,10))isTomorrow=' (明天)'}
     var dateName=dateKey==='未定日期'?'未定日期':dateKey+(isToday?' (今天)':isTomorrow);
     var doneCount=items.filter(function(r){return r.status==='done'}).length;
+    var isCollapsed=window._tlCollapsedDates[dateKey];
     html+='<div class="date-group" data-date="'+esc(dateKey)+'">';
-    html+='<div class="date-label" onclick="toggleDateGroup(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+esc(dateName)+'<span style="margin-left:4px;font-size:11px;font-weight:400;color:var(--text-light)">'+doneCount+'/'+items.length+'</span><span class="toggle-icon">▼</span></div>';
-    html+='<div class="date-group-body">';
+    html+='<div class="date-label" onclick="toggleDateGroup(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+esc(dateName)+'<span style="margin-left:4px;font-size:11px;font-weight:400;color:var(--text-light)">'+doneCount+'/'+items.length+'</span><span class="toggle-icon'+(isCollapsed?' collapsed':'')+'">▼</span></div>';
+    html+='<div class="date-group-body'+(isCollapsed?' collapsed':'')+'"'+(isCollapsed?' style="max-height:0;overflow:hidden"':'')+'>';
     html+=renderDayProgress(items);
     for(var j=0;j<items.length;j++){
       var r=items[j];var typeLabel=r.type==='food'?'吃':r.type==='scenic'?'玩':'住';var typeEmoji=r.type==='food'?'🍜':r.type==='scenic'?'🎡':'🏨';var isDone=r.status==='done';
@@ -1299,6 +1313,13 @@ function doTimelineDateSearch(val){
 function clearTimelineSearch(){
   window._tlSearchKw='';window._tlSearchDate='';
   renderTimeline();
+}
+function clearTimelineDateSearch(){
+  window._tlSearchDate='';
+  renderTimeline();
+}
+function triggerDatePick(){
+  var dp=document.getElementById('tl-date-picker');if(dp)dp.showPicker?dp.showPicker():dp.click();
 }
 
 // 日期分组收起/展开
