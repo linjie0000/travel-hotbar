@@ -638,11 +638,17 @@ async function doSearch(){
     var intent=parseSearchIntent(q);
     currentCity=intent.city;
     
-    // 1. 尝试实时搜索小红书
-    var xhsResults=await searchXHS(intent.keyword);
-    
-    // 2. 获取内置数据库
+    // 2. 先获取内置数据库（秒出）
     var dbResults=getDBResults(intent);
+    
+    // 1. 尝试实时搜索小红书（限时5秒）
+    var xhsResults=null;
+    try{
+      xhsResults=await Promise.race([
+        searchXHS(intent.keyword),
+        new Promise(function(res){setTimeout(function(){res(null)},5000)})
+      ]);
+    }catch(e){xhsResults=null}
     
     // 3. 合并渲染
     renderAllResults(intent,xhsResults,dbResults);
@@ -718,7 +724,7 @@ async function fetchViaProxies(keyword){
   for(var i=0;i<CORS_PROXIES.length;i++){
     try{
       var proxyUrl=CORS_PROXIES[i](xhsUrl);
-      var resp=await fetchWithTimeout(proxyUrl,8000);
+        var resp=await fetchWithTimeout(proxyUrl,5000);
       if(!resp||!resp.ok)continue;
       var html=await resp.text();
       var parsed=parseXHSHTML(html,keyword);
@@ -735,7 +741,7 @@ async function fetchViaProxies(keyword){
     for(var i=0;i<2;i++){
       try{
         var proxyUrl=CORS_PROXIES[i](bingUrl);
-        var resp=await fetchWithTimeout(proxyUrl,8000);
+      var resp=await fetchWithTimeout(proxyUrl,5000);
         if(!resp||!resp.ok)continue;
         var html=await resp.text();
         var parsed=parseBingHTML(html,keyword);
