@@ -73,6 +73,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC"
 .app-btn-xhs{background:var(--red);color:#fff}
 .app-btn-dy{background:#1A1A1A;color:#fff}
 .app-btn-add{background:var(--green);color:#fff}
+.app-btn-added{background:#E8E8E8;color:#999;cursor:default;pointer-events:none}
 
 /* 实时搜索结果卡片 */
 .live-card{background:var(--white);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
@@ -636,7 +637,15 @@ function renderHotTags(){
 }
 
 function quickSearch(q){
-  document.getElementById('search-input').value=q;
+  var input=document.getElementById('search-input');
+  var current=input.value.trim();
+  // 如果搜索框已有内容且不等于标签，则追加（如输入"大理"点"必去打卡"→"大理 必去打卡"）
+  if(current&&current!==q){
+    // 如果标签是分类关键词（如"美食推荐""必去打卡"），追加到已有内容后
+    input.value=current+' '+q;
+  }else{
+    input.value=q;
+  }
   doSearch();
 }
 
@@ -659,10 +668,10 @@ async function doSearch(){
     var intent=parseSearchIntent(q);
     currentCity=intent.city;
     
-    // 2. 先获取内置数据库（秒出）
+    // 获取内置数据库结果
     var dbResults=getDBResults(intent);
     
-    // 1. 尝试实时搜索小红书（限时5秒）
+    // 尝试实时搜索小红书（限时5秒）
     var xhsResults=null;
     try{
       xhsResults=await Promise.race([
@@ -671,19 +680,18 @@ async function doSearch(){
       ]);
     }catch(e){xhsResults=null}
     
-    // 3. 合并渲染
-    renderAllResults(intent,xhsResults,dbResults);
+    // 合并渲染（即使内置数据为空，也渲染小红书实时结果和跳转入口）
+    if(dbResults.hasData||xhsResults){
+      renderAllResults(intent,xhsResults,dbResults);
+    }else{
+      renderNoResult(intent);
+    }
   }catch(e){
     console.error('搜索出错:',e);
-    // 降级到仅内置数据
+    // 降级到无结果页面（提供APP跳转入口）
     var intent2=parseSearchIntent(q);
     currentCity=intent2.city;
-    var dbResults=getDBResults(intent2);
-    if(dbResults.hasData){
-      renderAllResults(intent2,null,dbResults);
-    }else{
-      renderNoResult(intent2);
-    }
+    renderNoResult(intent2);
   }
   
   isSearching=false;
@@ -695,13 +703,35 @@ function parseSearchIntent(q){
   q=q.replace(/市$/,'').trim();
   var city='';var category='';var keyword='';
   
-  // 尝试匹配城市名
+  // 尝试匹配内置城市名
   var cityNames=Object.keys(CITY_DB);
   for(var i=0;i<cityNames.length;i++){
     if(q.indexOf(cityNames[i])===0){
       city=cityNames[i];
       q=q.substring(city.length).trim();
       break;
+    }
+  }
+  
+  // 如果没匹配到内置城市，尝试识别其他中国城市名（2-3字+常见后缀）
+  if(!city){
+    var commonCities='拉萨,丽江,青岛,苏州,无锡,宁波,大连,哈尔滨,昆明,贵阳,海口,珠海,佛山,东莞,温州,绍兴,嘉兴,泉州,漳州,九江,景德镇,威海,烟台,潍坊,洛阳,开封,桂林,北海,张家界,凤凰,敦煌,嘉峪关,西宁,银川,呼和浩特,包头,延吉,丹东,宜宾,泸州,遵义,荆州,宜昌,襄阳,岳阳,衡阳,九江,赣州,龙岩,三明,宁德,莆田,南平,武夷山,都江堰,乐山,峨眉山,九寨沟,康定,香格里拉,腾冲,芒市,西双版纳,普洱,临沧,建水,元阳,镇远,黄果树,荔波,凤凰古城,阳朔,德天瀑布,涠洲岛,嵊泗,千灯,周庄,同里,乌镇,西塘,南浔,甪直,木渎,朱家角';
+    var cityList=commonCities.split(',');
+    for(var i=0;i<cityList.length;i++){
+      if(q.indexOf(cityList[i])===0){
+        city=cityList[i];
+        q=q.substring(city.length).trim();
+        break;
+      }
+    }
+  }
+  
+  // 如果还是没匹配到，尝试提取开头2-3字作为城市（智能识别）
+  if(!city){
+    var m2=q.match(/^([\u4e00-\u9fff]{2,3})(?:\s+|$|美食|吃|火锅|小吃|景点|玩|旅游|酒店|住|民宿|打卡|必去|推荐|攻略|网红|隐藏|地道)/);
+    if(m2){
+      city=m2[1];
+      q=q.substring(city.length).trim();
     }
   }
   
@@ -930,6 +960,12 @@ function renderAllResults(intent,xhsResults,dbResults){
     }
   }
   
+  // 即使内置数据为空但有小红书结果，也要渲染
+  if(!dbResults.hasData){
+    // 非内置城市，显示提示
+    html+='<div style="padding:12px;background:#FFF7ED;border-radius:10px;margin-bottom:12px;font-size:12px;color:var(--orange)">「'+esc(intent.city||intent.original)+'」暂无内置推荐数据，以下为小红书实时搜索结果，也可手动添加打卡计划</div>';
+  }
+  
   // 如果都没有数据，且小红书也没搜到
   if((!xhsResults||xhsResults.length===0)&&!dbResults.hasData){
     renderNoResult(intent);
@@ -940,8 +976,8 @@ function renderAllResults(intent,xhsResults,dbResults){
   html+='<div style="margin-top:16px;padding:16px;background:var(--white);border-radius:12px;text-align:center">';
   html+='<div style="font-size:13px;font-weight:600;margin-bottom:10px">没有找到想要的结果？</div>';
   html+='<div style="display:flex;gap:8px;justify-content:center">';
-  html+='<button class="app-btn app-btn-xhs" style="padding:8px 16px;font-size:13px" onclick="openXHSWeb(\''+escAttr(intent.keyword)+'\')">📕 小红书搜索</button>';
-  html+='<button class="app-btn app-btn-dy" style="padding:8px 16px;font-size:13px" onclick="openDYWeb(\''+escAttr(intent.keyword)+'\')">🎵 抖音搜索</button>';
+  html+='<button class="app-btn app-btn-xhs" style="padding:8px 16px;font-size:13px" onclick="openXHS(\''+escAttr(intent.keyword)+'\')">📕 小红书搜索</button>';
+  html+='<button class="app-btn app-btn-dy" style="padding:8px 16px;font-size:13px" onclick="openDY(\''+escAttr(intent.keyword)+'\')">🎵 抖音搜索</button>';
   html+='</div></div>';
   
   document.getElementById('search-content').innerHTML=html;
@@ -967,7 +1003,7 @@ function renderNoResult(intent){
   
   for(var i=0;i<searchTerms.length;i++){
     var s=searchTerms[i];
-    html+='<div class="rank-card" onclick="openXHSWeb(\''+escAttr(s.kw)+'\')" style="cursor:pointer">';
+    html+='<div class="rank-card" onclick="openXHS(\''+escAttr(s.kw)+'\')" style="cursor:pointer">';
     html+='<div class="rank-num normal">'+s.emoji+'</div>';
     html+='<div class="rank-info"><div class="rank-name">'+esc(s.kw)+'</div>';
     html+='<div class="rank-desc">点击在小红书中搜索</div></div>';
@@ -980,12 +1016,12 @@ function renderNoResult(intent){
   // 抖音搜索入口
   html+='<div style="margin-top:16px">';
   html+='<div class="section-title"><span class="section-icon" style="background:#1A1A1A;color:#fff">🎵</span>直接搜索抖音</div>';
-  html+='<div class="rank-card" onclick="openDYWeb(\''+escAttr(kw+' 美食')+'\')" style="cursor:pointer">';
+  html+='<div class="rank-card" onclick="openDY(\''+escAttr(kw+' 美食')+'\')" style="cursor:pointer">';
   html+='<div class="rank-num normal">🍜</div>';
   html+='<div class="rank-info"><div class="rank-name">'+esc(kw)+' 美食</div><div class="rank-desc">在抖音中搜索美食视频</div></div>';
   html+='<div class="rank-actions"><button class="app-btn app-btn-dy">搜索</button></div>';
   html+='</div>';
-  html+='<div class="rank-card" onclick="openDYWeb(\''+escAttr(kw+' 景点')+'\')" style="cursor:pointer">';
+  html+='<div class="rank-card" onclick="openDY(\''+escAttr(kw+' 景点')+'\')" style="cursor:pointer">';
   html+='<div class="rank-num normal">🎡</div>';
   html+='<div class="rank-info"><div class="rank-name">'+esc(kw)+' 景点</div><div class="rank-desc">在抖音中搜索景点视频</div></div>';
   html+='<div class="rank-actions"><button class="app-btn app-btn-dy">搜索</button></div>';
@@ -1001,10 +1037,14 @@ function renderSection(title,arr,type,emoji,city){
   if(!arr||!arr.length){return html+'<div style="text-align:center;padding:16px;color:var(--text-light);font-size:13px">暂无推荐</div>'}
   for(var i=0;i<arr.length;i++){
     var r=arr[i];var numCls=i<1?'top1':i<2?'top2':i<3?'top3':'normal';
+    var alreadyAdded=timelineData.some(function(t){return t.name===r.name&&t.city===city});
+    var addCls=alreadyAdded?'app-btn-added':'app-btn-add';
+    var addText=alreadyAdded?'已收藏':'+打卡';
+    var addOnclick=alreadyAdded?'':("addToTimelineAndMark('"+escAttr(city)+"','"+escAttr(r.name)+"','"+type+"',this)");
     html+='<div class="rank-card"><div class="rank-num '+numCls+'">'+(i+1)+'</div>';
     html+='<div class="rank-info"><div class="rank-name">'+esc(r.name)+'</div><div class="rank-desc">'+esc(r.desc)+'</div><div class="rank-hot">🔥 '+esc(r.hot)+'</div></div>';
     html+='<div class="rank-actions">';
-    html+='<button class="app-btn app-btn-add" onclick="addToTimeline(\''+escAttr(city)+'\',\''+escAttr(r.name)+'\',\''+type+'\')">+打卡</button>';
+    html+='<button class="app-btn '+addCls+'" onclick="'+addOnclick+'">'+addText+'</button>';
     html+='<button class="app-btn app-btn-xhs" onclick="openXHS(\''+escAttr(r.name+' '+city)+'\')">小红书</button>';
     html+='<button class="app-btn app-btn-dy" onclick="openDY(\''+escAttr(r.name+' '+city)+'\')">抖音</button>';
     html+='</div></div>';
@@ -1070,8 +1110,19 @@ function closeAppDialog(){document.getElementById('dialog-bg').style.display='no
 
 // ============ 时间线管理 ============
 function addToTimeline(city,name,type){
+  // 防止重复添加
+  var exists=timelineData.some(function(t){return t.name===name&&t.city===city});
+  if(exists){toast('已在打卡计划中');return}
   var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:type,date:new Date().toISOString().slice(0,10),note:'',reason:'',startTime:'',endTime:'',status:'pending',createdAt:new Date().toISOString()};
   timelineData.push(rec);saveTimeline();renderTimeline();toast('已加入打卡计划');
+}
+// 点击+打卡按钮后，加入时间线并让按钮变暗
+function addToTimelineAndMark(city,name,type,btn){
+  var exists=timelineData.some(function(t){return t.name===name&&t.city===city});
+  if(exists){toast('已在打卡计划中');return}
+  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:type,date:new Date().toISOString().slice(0,10),note:'',reason:'',startTime:'',endTime:'',status:'pending',createdAt:new Date().toISOString()};
+  timelineData.push(rec);saveTimeline();renderTimeline();toast('已加入打卡计划');
+  if(btn){btn.className='app-btn app-btn-added';btn.textContent='已收藏';btn.onclick=null}
 }
 function showAddModal(){
   selectedType='food';
