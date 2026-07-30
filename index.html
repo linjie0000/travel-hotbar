@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>旅途热榜 - 小红书抖音实时搜索</title>
+<meta name="description" content="实时搜索小红书排名，支持所有城市和地点">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="data:application/json,{}">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --red:#FF2442;--red-light:#FFF0F2;--black:#1A1A1A;--text:#333;--text-light:#999;
+  --bg:#F5F5F5;--white:#fff;--border:#EBEBEB;--orange:#FF8800;--blue:#4A9EF5;
+  --green:#07C160;--purple:#8B5CF6;--cyan:#06B6D4;
+  --safe-b:env(safe-area-inset-bottom,0px)
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;overflow:hidden}
+::-webkit-scrollbar{display:none}
+.app{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden;max-width:480px;margin:0 auto;position:relative;background:var(--bg)}
+.header{background:var(--white);padding:12px 16px 8px;flex-shrink:0;position:sticky;top:0;z-index:20;border-bottom:1px solid var(--border)}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.app-title{font-size:18px;font-weight:700;color:var(--black)}
+.app-title span{color:var(--red)}
+.header-actions{display:flex;gap:6px}
+.header-btn{width:32px;height:32px;border:none;background:var(--bg);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px}
+.search-wrap{display:flex;gap:8px;align-items:center}
+.search-box{flex:1;display:flex;align-items:center;background:var(--bg);border-radius:20px;padding:0 12px;height:36px}
+.search-box svg{width:16px;height:16px;color:var(--text-light);flex-shrink:0}
+.search-box input{border:none;outline:none;background:transparent;padding:0 8px;font-size:14px;width:100%;color:var(--text)}
+.search-btn{height:36px;padding:0 16px;border:none;background:var(--red);color:#fff;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.search-btn:active{opacity:.85}
+.search-btn:disabled{opacity:.5;cursor:not-allowed}
+.search-hints{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.hot-tag{padding:3px 10px;border-radius:12px;font-size:11px;background:var(--white);border:1px solid var(--border);cursor:pointer;color:var(--text);font-weight:500}
+.hot-tag:active{opacity:.7}
+.hot-tag svg{width:12px;height:12px;vertical-align:middle;margin-right:2px}
+.page-container{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;top:0;left:0;right:0;bottom:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 80px;display:none}
+.page.active{display:block}
+.tab-bar{position:absolute;bottom:0;left:0;right:0;height:56px;padding-bottom:var(--safe-b);background:var(--white);border-top:1px solid var(--border);display:flex;z-index:30}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:none;background:none;cursor:pointer;color:var(--text-light);font-size:10px;transition:color .15s}
+.tab-item.active{color:var(--red)}
+.tab-item svg{width:22px;height:22px}
+.tab-label{font-weight:500}
+
+/* 搜索结果 */
+.result-city{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.result-city::before{content:'';width:4px;height:16px;background:var(--red);border-radius:2px}
+.section-title{font-size:15px;font-weight:700;margin:16px 0 8px;display:flex;align-items:center;gap:6px}
+.section-icon{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.icon-food{background:#FFF0F2;color:var(--red)}
+.icon-scenic{background:#E8F2FF;color:var(--blue)}
+.icon-hotel{background:#FFF7ED;color:var(--orange)}
+.icon-xhs{background:#FFF0F2;color:var(--red)}
+
+/* 排名卡片 */
+.rank-card{background:var(--white);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;position:relative;transition:transform .15s}
+.rank-card:active{transform:scale(.98)}
+.rank-num{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px}
+.rank-num.top1{background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff}
+.rank-num.top2{background:linear-gradient(135deg,#C0C0C0,#A0A0A0);color:#fff}
+.rank-num.top3{background:linear-gradient(135deg,#CD7F32,#B8860B);color:#fff}
+.rank-num.normal{background:var(--bg);color:var(--text-light)}
+.rank-info{flex:1;min-width:0}
+.rank-name{font-size:14px;font-weight:600;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.rank-desc{font-size:12px;color:var(--text-light);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rank-hot{font-size:10px;color:var(--red);font-weight:600;margin-top:3px}
+.rank-source{font-size:10px;color:var(--blue);font-weight:500;margin-left:4px}
+.rank-actions{display:flex;gap:4px;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.app-btn{display:flex;align-items:center;gap:2px;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:600;border:none;cursor:pointer;white-space:nowrap}
+.app-btn:active{opacity:.8}
+.app-btn-xhs{background:var(--red);color:#fff}
+.app-btn-dy{background:#1A1A1A;color:#fff}
+.app-btn-add{background:var(--green);color:#fff}
+
+/* 实时搜索结果卡片 */
+.live-card{background:var(--white);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
+.live-card .live-badge{font-size:9px;background:linear-gradient(135deg,var(--red),#FF6B6B);color:#fff;padding:1px 6px;border-radius:4px;font-weight:600;margin-left:4px}
+.live-author{font-size:11px;color:var(--text-light);margin-top:2px}
+.live-likes{font-size:11px;color:var(--red);margin-top:2px;font-weight:600}
+
+/* 加载状态 */
+.loading-state{text-align:center;padding:40px 20px}
+.loading-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:var(--text-light)}
+
+/* 搜索模式切换 */
+.search-mode{display:flex;gap:6px;margin-top:8px}
+.mode-btn{padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--white);cursor:pointer;color:var(--text)}
+.mode-btn.active{background:var(--red);color:#fff;border-color:var(--red)}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-light)}
+.empty-state .icon{font-size:40px;margin-bottom:8px}
+.empty-state p{font-size:13px}
+
+/* 时间线 */
+.timeline-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.timeline-header h2{font-size:18px;font-weight:700}
+.add-manual-btn{display:flex;align-items:center;gap:4px;padding:6px 12px;background:var(--red);color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
+.add-manual-btn:active{opacity:.85}
+.add-manual-btn svg{width:14px;height:14px}
+.date-group{margin-bottom:16px}
+.date-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:8px;padding:0 4px}
+.date-label svg{width:14px;height:14px}
+.tl-card{background:var(--white);border-radius:12px;padding:12px;margin-bottom:6px;position:relative;border-left:3px solid var(--blue)}
+.tl-card.type-food{border-left-color:var(--red)}
+.tl-card.type-scenic{border-left-color:var(--blue)}
+.tl-card.type-hotel{border-left-color:var(--orange)}
+.tl-card.done{opacity:.65}
+.tl-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.tl-type{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600}
+.tl-type.type-food{background:var(--red-light);color:var(--red)}
+.tl-type.type-scenic{background:#E8F2FF;color:var(--blue)}
+.tl-type.type-hotel{background:#FFF7ED;color:var(--orange)}
+.tl-status{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600;cursor:pointer;border:none}
+.tl-status.pending{background:#FFF7ED;color:var(--orange)}
+.tl-status.completed{background:#ECFDF5;color:var(--green)}
+.tl-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.tl-city{font-size:12px;color:var(--text-light)}
+.tl-note{font-size:12px;color:var(--text-light);margin-top:4px;font-style:italic}
+.tl-actions{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
+.tl-act-btn{font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--white);cursor:pointer;color:var(--text)}
+.tl-act-btn:active{background:var(--bg)}
+.tl-act-btn.del{color:var(--red);border-color:#FCA5A5}
+.tl-act-btn.done-btn{color:var(--green);border-color:#86EFAC}
+
+/* 弹窗 */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-sheet{background:var(--white);border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;padding-bottom:var(--safe-b)}
+.modal-head{padding:16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-head h3{font-size:16px;font-weight:700}
+.modal-close{width:28px;height:28px;border:none;background:var(--bg);border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-light)}
+.modal-body{padding:16px;overflow-y:auto;flex:1}
+.form-item{margin-bottom:12px}
+.form-label{font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:4px;display:block}
+.form-input,.form-select,.form-textarea{width:100%;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:14px;outline:none;transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--red)}
+.form-textarea{resize:vertical;min-height:60px}
+.type-picker{display:flex;gap:8px}
+.type-opt{flex:1;padding:8px;border:2px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;font-size:13px;font-weight:600;transition:all .15s}
+.type-opt.sel-food{border-color:var(--red);background:var(--red-light);color:var(--red)}
+.type-opt.sel-scenic{border-color:var(--blue);background:#E8F2FF;color:var(--blue)}
+.type-opt.sel-hotel{border-color:var(--orange);background:#FFF7ED;color:var(--orange)}
+.modal-foot{padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0}
+.modal-foot .submit-btn{width:100%;padding:12px;border:none;background:var(--red);color:#fff;border-radius:24px;font-size:15px;font-weight:700;cursor:pointer}
+.modal-foot .submit-btn:active{opacity:.85}
+
+.toast-wrap{position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:200;pointer-events:none}
+.toast-msg{background:rgba(0,0,0,.78);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;animation:toastIn .3s}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+.app-dialog{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--white);border-radius:16px;padding:24px;width:280px;text-align:center;z-index:150;box-shadow:0 8px 40px rgba(0,0,0,.15)}
+.app-dialog h4{font-size:16px;margin-bottom:8px}
+.app-dialog p{font-size:13px;color:var(--text-light);margin-bottom:16px}
+.app-dialog button{padding:8px 24px;border:none;border-radius:20px;background:var(--red);color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.dialog-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.3);z-index:140}
+
+.filter-chips{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.chip{padding:4px 10px;border-radius:14px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--white);cursor:pointer;color:var(--text)}
+.chip.active{background:var(--red);color:#fff;border-color:var(--red)}
+.chip:active{opacity:.85}
+.stats-row{display:flex;gap:8px;margin-bottom:12px}
+.stat-pill{flex:1;background:var(--white);border-radius:10px;padding:8px;text-align:center}
+.stat-pill .num{font-size:20px;font-weight:800;color:var(--black)}
+.stat-pill .label{font-size:10px;color:var(--text-light)}
+
+/* 热门城市入口 */
+.hot-cities{margin-top:16px}
+.hot-cities-title{font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:8px}
+.city-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.city-card{background:var(--white);border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;border:1px solid transparent;transition:all .15s}
+.city-card:active{transform:scale(.95);border-color:var(--red)}
+.city-card .emoji{font-size:22px;margin-bottom:2px}
+.city-card .name{font-size:12px;font-weight:600;color:var(--text)}
+
+/* 搜索类型标签 */
+.search-type-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.stype-tab{padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--white);cursor:pointer;color:var(--text)}
+.stype-tab.active{background:var(--red);color:#fff;border-color:var(--red)}
+
+@media(min-width:481px){.app{border-left:1px solid var(--border);border-right:1px solid var(--border)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">旅途<span>热榜</span></div>
+      <div class="header-actions">
+        <button class="header-btn" onclick="exportData()" title="导出数据">📤</button>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="search-input" placeholder="搜索任意城市或地点（如：成都火锅、杭州景点）" enterkeyhint="search">
+      </div>
+      <button class="search-btn" id="search-btn" onclick="doSearch()">搜索</button>
+    </div>
+    <div class="search-hints" id="hot-tags"></div>
+  </div>
+  <div class="page-container">
+    <div class="page active" id="page-search">
+      <div id="search-content">
+        <div class="hot-cities" id="hot-cities"></div>
+      </div>
+    </div>
+    <div class="page" id="page-timeline">
+      <div class="timeline-header"><h2>我的旅行时间线</h2><button class="add-manual-btn" onclick="showAddModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>手动添加</button></div>
+      <div id="timeline-stats" class="stats-row" style="display:none">
+        <div class="stat-pill"><div class="num" id="tl-total">0</div><div class="label">总计划</div></div>
+        <div class="stat-pill"><div class="num" id="tl-pending">0</div><div class="label">待打卡</div></div>
+        <div class="stat-pill"><div class="num" id="tl-done">0</div><div class="label">已打卡</div></div>
+      </div>
+      <div id="timeline-filter" class="filter-chips" style="display:none">
+        <span class="chip active" data-filter="all" onclick="filterTimeline('all',this)">全部</span>
+        <span class="chip" data-filter="food" onclick="filterTimeline('food',this)">吃</span>
+        <span class="chip" data-filter="scenic" onclick="filterTimeline('scenic',this)">玩</span>
+        <span class="chip" data-filter="hotel" onclick="filterTimeline('hotel',this)">住</span>
+        <span class="chip" data-filter="pending" onclick="filterTimeline('pending',this)">待打卡</span>
+        <span class="chip" data-filter="done" onclick="filterTimeline('done',this)">已打卡</span>
+      </div>
+      <div id="timeline-content">
+        <div class="empty-state"><div class="icon">📅</div><p>还没有旅行打卡计划</p><p style="font-size:12px;margin-top:4px">搜索城市后一键添加，或手动创建</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-item active" data-tab="search" onclick="switchTab('search',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tab-label">实时搜索</span></button>
+    <button class="tab-item" data-tab="timeline" onclick="switchTab('timeline',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg><span class="tab-label">我的时间线</span></button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add">
+  <div class="modal-sheet">
+    <div class="modal-head"><h3>添加打卡计划</h3><button class="modal-close" onclick="closeModal('modal-add')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-item"><label class="form-label">城市 *</label><input class="form-input" id="m-city" placeholder="如：成都"></div>
+      <div class="form-item"><label class="form-label">地点名称 *</label><input class="form-input" id="m-name" placeholder="如：宽窄巷子"></div>
+      <div class="form-item"><label class="form-label">类型 *</label><div class="type-picker" id="type-picker"><div class="type-opt" data-type="food" onclick="pickType('food')">🍜 美食</div><div class="type-opt" data-type="scenic" onclick="pickType('scenic')">🎡 景点</div><div class="type-opt" data-type="hotel" onclick="pickType('hotel')">🏨 酒店</div></div></div>
+      <div class="form-item"><label class="form-label">计划打卡日期</label><input class="form-input" id="m-date" type="date"></div>
+      <div class="form-item"><label class="form-label">个人备注</label><textarea class="form-textarea" id="m-note" placeholder="写点什么..."></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="submit-btn" onclick="saveManual()">保存打卡计划</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal-sheet">
+    <div class="modal-head"><h3>编辑打卡</h3><button class="modal-close" onclick="closeModal('modal-edit')">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="e-id">
+      <div class="form-item"><label class="form-label">城市</label><input class="form-input" id="e-city"></div>
+      <div class="form-item"><label class="form-label">地点名称</label><input class="form-input" id="e-name"></div>
+      <div class="form-item"><label class="form-label">计划打卡日期</label><input class="form-input" id="e-date" type="date"></div>
+      <div class="form-item"><label class="form-label">个人备注</label><textarea class="form-textarea" id="e-note"></textarea></div>
+    </div>
+    <div class="modal-foot"><button class="submit-btn" onclick="saveEdit()">保存修改</button></div>
+  </div>
+</div>
+
+<div class="dialog-bg" id="dialog-bg" style="display:none" onclick="closeAppDialog()"></div>
+<div class="app-dialog" id="app-dialog" style="display:none"><h4 id="dialog-title">提示</h4><p id="dialog-msg">未检测到对应APP</p><button onclick="closeAppDialog()">我知道了</button></div>
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ============ CORS代理列表（用于跨域抓取小红书搜索结果） ============
+var CORS_PROXIES = [
+  function(url){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url) },
+  function(url){ return 'https://corsproxy.io/?' + encodeURIComponent(url) },
+  function(url){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url) },
+  function(url){ return 'https://cors.bridged.cc/' + url },
+  function(url){ return 'https://thingproxy.freeboard.io/fetch/' + url }
+];
+
+// ============ 内置城市数据库（保留作为降级数据） ============
+var CITY_DB={
+'成都':{
+  food:[
+    {name:'冒椒火辣(奎星楼街店)',desc:'宽窄巷子旁冷锅串串天花板，人均50+天天爆满',hot:'99+万浏览'},
+    {name:'麓山火锅',desc:'牛油锅底浓郁醇厚，菜品创新，本地老饕首选',hot:'85万浏览'},
+    {name:'小龙坎春熙路旗舰店',desc:'春熙路地标火锅，小红书刷屏市井烟火气',hot:'78万浏览'},
+    {name:'马路边边麻辣烫',desc:'成都麻辣烫代名词，抖音探店必拍',hot:'65万浏览'},
+    {name:'甘食记肥肠粉',desc:'百年老字号，肥肠粉+锅盔黄金搭档',hot:'52万浏览'},
+    {name:'饕林餐厅',desc:'本地人认证川菜馆，豆瓣鱼必点',hot:'48万浏览'},
+    {name:'钢管厂五区小郡肝串串',desc:'串串鼻祖，深夜食堂排队王',hot:'42万浏览'},
+    {name:'陶德砂锅',desc:'人均40的宝藏砂锅，蒜蓉虾必点',hot:'38万浏览'},
+    {name:'巴蜀大宅门火锅',desc:'老成都火锅代表，牛油味十足',hot:'35万浏览'},
+    {name:'双流老妈兔头',desc:'兔头界的天花板，成都美食名片',hot:'30万浏览'}
+  ],
+  scenic:[
+    {name:'大熊猫繁育研究基地',desc:'看花花排3小时也值得，成都必打卡TOP1',hot:'120万浏览'},
+    {name:'宽窄巷子',desc:'百年老街新韵，川剧变脸+小吃一条龙',hot:'95万浏览'},
+    {name:'武侯祠+锦里',desc:'三国文化圣地，锦里古街夜景绝了',hot:'82万浏览'},
+    {name:'春熙路+太古里',desc:'成都潮流地标，3D裸眼大屏打卡',hot:'75万浏览'},
+    {name:'都江堰+青城山',desc:'千年水利工程+道教名山，一日游经典',hot:'68万浏览'},
+    {name:'杜甫草堂',desc:'诗圣故居，竹林清幽室内避暑首选',hot:'55万浏览'},
+    {name:'人民公园鹤鸣茶社',desc:'盖碗茶+采耳，体验最地道成都慢生活',hot:'50万浏览'},
+    {name:'九眼桥夜游锦江',desc:'酒吧一条街+锦江夜游，成都夜生活代表',hot:'45万浏览'},
+    {name:'三星堆博物馆',desc:'古蜀文明震撼出圈，青铜神树必看',hot:'40万浏览'}
+  ],
+  hotel:[
+    {name:'成都博舍酒店',desc:'太古里核心位置，极简设计+空中花园',hot:'60万浏览'},
+    {name:'成都钓鱼台精品酒店',desc:'宽窄巷子旁，国风美学天花板',hot:'48万浏览'},
+    {name:'成都尼依格罗酒店',desc:'IFS顶层俯瞰春熙路，高空无边泳池',hot:'42万浏览'},
+    {name:'成都W酒店',desc:'潮人打卡酒店，WET酒吧+元气早餐',hot:'38万浏览'},
+    {name:'成都花间堂·悟',desc:'人民公园旁中式庭院，闹中取静',hot:'32万浏览'},
+    {name:'成都世纪城天堂洲际酒店',desc:'亲子家庭首选，超大泳池+自助餐',hot:'28万浏览'},
+    {name:'成都九眼桥电竞酒店',desc:'i7+RTX4060包夜开黑，人均150起',hot:'25万浏览'}
+  ]
+},
+'北京':{
+  food:[
+    {name:'四季民福烤鸭(故宫店)',desc:'故宫角楼旁吃烤鸭，小红书必拍机位',hot:'110万浏览'},
+    {name:'南门涮肉',desc:'铜锅涮肉老字号，芝麻酱蘸料灵魂',hot:'78万浏览'},
+    {name:'牛街清真小吃街',desc:'白记年糕+洪记小吃，北京美食集散地',hot:'70万浏览'},
+    {name:'局气',desc:'京菜网红，蜂窝煤炒饭+兔爷土豆泥',hot:'55万浏览'},
+    {name:'护国寺小吃',desc:'豆汁焦圈+艾窝窝，老北京早餐图鉴',hot:'50万浏览'},
+    {name:'方砖厂69号炸酱面',desc:'米其林必比登，一碗炸酱面征服全球',hot:'45万浏览'},
+    {name:'紫光园',desc:'北京人从小吃到大，烧饼+炒疙瘩',hot:'40万浏览'},
+    {name:'裕德孚火锅',desc:'老北京铜锅，手切鲜羊肉一绝',hot:'35万浏览'},
+    {name:'姚记炒肝',desc:'鼓楼前排队30年的炒肝包子',hot:'30万浏览'}
+  ],
+  scenic:[
+    {name:'故宫博物院',desc:'600年紫禁城，AR夜游成2026暑期新爆款',hot:'200万浏览'},
+    {name:'环球影城',desc:'哈利波特+变形金刚，暑假亲子必去',hot:'150万浏览'},
+    {name:'八达岭长城',desc:'不到长城非好汉，抖音航拍百万赞',hot:'120万浏览'},
+    {name:'颐和园',desc:'皇家园林，昆明湖划船+佛香阁',hot:'90万浏览'},
+    {name:'天坛公园',desc:'祈年殿打卡照，回音壁体验声学奇迹',hot:'70万浏览'},
+    {name:'南锣鼓巷',desc:'胡同文化+创意小店，北京文艺地标',hot:'60万浏览'},
+    {name:'798艺术区',desc:'当代艺术天堂，拍照出片率100%',hot:'55万浏览'},
+    {name:'什刹海',desc:'后海酒吧+胡同骑行，北京夜生活',hot:'48万浏览'},
+    {name:'国家博物馆',desc:'中华文物宝库，暑假研学首选',hot:'42万浏览'}
+  ],
+  hotel:[
+    {name:'北京王府井文华东方',desc:'紫禁城景观房，故宫角楼尽收眼底',hot:'80万浏览'},
+    {name:'北京璞瑄酒店',desc:'嘉德艺术中心内，文化酒店天花板',hot:'55万浏览'},
+    {name:'北京CHAO',desc:'三里屯潮牌酒店，社交空间设计感',hot:'45万浏览'},
+    {name:'北京诺金酒店',desc:'颐和园旁中式奢华，皇室风格',hot:'38万浏览'},
+    {name:'北京四合院民宿',desc:'胡同深处的老北京生活体验',hot:'32万浏览'},
+    {name:'北京环球影城酒店',desc:'入园早享1小时，小黄人主题房',hot:'28万浏览'}
+  ]
+},
+'上海':{
+  food:[
+    {name:'光明邨大苑',desc:'淮海路排队王，鲜肉月饼+葱油拌面',hot:'90万浏览'},
+    {name:'外滩18号Mr & Mrs Bund',desc:'法式创意料理，外滩夜景佐餐',hot:'75万浏览'},
+    {name:'小杨生煎',desc:'上海生煎代名词，爆汁一口入魂',hot:'65万浏览'},
+    {name:'南翔馒头店',desc:'城隍庙百年老店，小笼包发源地',hot:'55万浏览'},
+    {name:'老正兴',desc:'本帮菜老字号，草头圈子+油爆虾',hot:'48万浏览'},
+    {name:'阿大葱油饼',desc:'网红葱油饼6点排队，迟到没有',hot:'40万浏览'},
+    {name:'佳家汤包',desc:'蟹粉小笼天花板，皮薄馅大汁鲜',hot:'35万浏览'},
+    {name:'上海老饭店',desc:'本帮菜集大成，八宝鸭+红烧肉',hot:'30万浏览'}
+  ],
+  scenic:[
+    {name:'上海迪士尼',desc:'暑假烟花秀+玲娜贝儿，亲子必去TOP1',hot:'180万浏览'},
+    {name:'外滩万国建筑群',desc:'东方明珠对岸，魔都明信片机位',hot:'130万浏览'},
+    {name:'武康路',desc:'法租界梧桐大道，网红咖啡+老洋房',hot:'85万浏览'},
+    {name:'豫园+城隍庙',desc:'江南园林+老上海烟火气',hot:'70万浏览'},
+    {name:'上海博物馆',desc:'大英百物展级展品，文化之旅必选',hot:'55万浏览'},
+    {name:'田子坊',desc:'石库门里的文艺小店，手作天堂',hot:'45万浏览'},
+    {name:'上海中心大厦',desc:'632米云端观光，俯瞰魔都全景',hot:'40万浏览'}
+  ],
+  hotel:[
+    {name:'上海和平饭店',desc:'外滩地标百年酒店，爵士酒吧夜夜笙歌',hot:'90万浏览'},
+    {name:'上海养云安缦',desc:'千年古樟树+明清古宅，隐世奢华',hot:'65万浏览'},
+    {name:'上海W酒店',desc:'外滩江景+WET天台泳池，潮人首选',hot:'50万浏览'},
+    {name:'上海建业里嘉佩乐',desc:'石库门里的法式别墅',hot:'42万浏览'},
+    {name:'上海外滩茂悦大酒店',desc:'陆家嘴江景房，非常道日料',hot:'35万浏览'}
+  ]
+},
+'三亚':{
+  food:[
+    {name:'第一市场海鲜',desc:'海鲜砍价+加工一条龙，三亚必体验',hot:'80万浏览'},
+    {name:'嗲嗲的椰子鸡',desc:'椰子水煮鸡，清甜鲜美三亚味道',hot:'60万浏览'},
+    {name:'阿浪海鲜连锁',desc:'本地人推荐，明码标价不坑人',hot:'48万浏览'},
+    {name:'君瑞陵水酸粉',desc:'三亚早餐首选，酸辣开胃',hot:'35万浏览'},
+    {name:'红沙大排档',desc:'海鲜大排档天花板，新鲜看得见',hot:'30万浏览'}
+  ],
+  scenic:[
+    {name:'蜈支洲岛',desc:'潜水+环岛电瓶车，海上玻璃海',hot:'100万浏览'},
+    {name:'亚龙湾热带天堂森林公园',desc:'非诚勿扰取景地，悬崖栈道',hot:'75万浏览'},
+    {name:'南山海上观音',desc:'108米观音圣像，三亚精神地标',hot:'65万浏览'},
+    {name:'天涯海角',desc:'爱情圣地打卡，日月石',hot:'50万浏览'},
+    {name:'呀诺达雨林',desc:'热带雨林穿越+高空滑索',hot:'42万浏览'},
+    {name:'椰梦长廊',desc:'三亚湾20公里椰林日落，免费',hot:'38万浏览'}
+  ],
+  hotel:[
+    {name:'亚特兰蒂斯酒店',desc:'水族馆+水上乐园，三亚亲子天花板',hot:'95万浏览'},
+    {name:'三亚艾迪逊酒店',desc:'海棠湾设计酒店，极简高级感',hot:'60万浏览'},
+    {name:'三亚亚龙湾丽思卡尔顿',desc:'亚龙湾一线海景，私人沙滩',hot:'50万浏览'},
+    {name:'三亚嘉佩乐酒店',desc:'三面环海，无边泳池看日出',hot:'42万浏览'},
+    {name:'三亚海棠湾仁恒皇冠假日',desc:'亲子友好，儿童乐园+水上滑梯',hot:'35万浏览'}
+  ]
+},
+'杭州':{
+  food:[
+    {name:'知味观·味庄',desc:'杭帮菜百年老店，西湖醋鱼必点',hot:'88万浏览'},
+    {name:'外婆家',desc:'杭帮菜性价比之王，茶香肉绝',hot:'72万浏览'},
+    {name:'新白鹿餐厅',desc:'本地人日常杭帮菜，人均60吃好',hot:'58万浏览'},
+    {name:'楼外楼',desc:'孤山脚下百年老店，乾隆鱼头',hot:'50万浏览'},
+    {name:'方老大面馆',desc:'片儿川鼻祖，杭帮面天花板',hot:'42万浏览'},
+    {name:'奎元馆',desc:'虾爆鳝面传百年，面馆活化石',hot:'35万浏览'}
+  ],
+  scenic:[
+    {name:'西湖十景',desc:'断桥残雪+雷峰夕照，杭州名片',hot:'150万浏览'},
+    {name:'灵隐寺',desc:'千年古刹，飞来峰石窟造像',hot:'90万浏览'},
+    {name:'西溪湿地',desc:'城市绿肺，摇橹船慢生活',hot:'65万浏览'},
+    {name:'千岛湖',desc:'天下第一秀水，骑行+皮划艇',hot:'55万浏览'},
+    {name:'宋城景区',desc:'宋城千古情演出，沉浸式穿越',hot:'48万浏览'},
+    {name:'龙井村',desc:'茶山徒步+品龙井，茶文化体验',hot:'40万浏览'}
+  ],
+  hotel:[
+    {name:'杭州西湖国宾馆',desc:'毛主席住过的国宾馆，西湖一线',hot:'70万浏览'},
+    {name:'杭州法云安缦',desc:'灵隐寺旁古村落，禅意隐世',hot:'55万浏览'},
+    {name:'杭州柏悦酒店',desc:'钱塘江景，高层无边泳池',hot:'42万浏览'},
+    {name:'杭州西溪悦榕庄',desc:'湿地别墅，私人泳池+SPA',hot:'38万浏览'}
+  ]
+},
+'重庆':{
+  food:[
+    {name:'珮姐老火锅',desc:'重庆火锅名片，牛油九宫格',hot:'95万浏览'},
+    {name:'周师兄大刀腰片火锅',desc:'腰片薄如纸，重庆排队王',hot:'78万浏览'},
+    {name:'洞亭火锅',desc:'防空洞里吃火锅，重庆独一份',hot:'65万浏览'},
+    {name:'好又来酸辣粉',desc:'解放碑酸辣粉排队30年',hot:'52万浏览'},
+    {name:'胖妹面庄',desc:'重庆小面天花板，麻辣鲜香',hot:'45万浏览'},
+    {name:'九村烤脑花',desc:'重庆夜宵扛把子，脑花嫩滑',hot:'38万浏览'}
+  ],
+  scenic:[
+    {name:'洪崖洞',desc:'千与千寻现实版，夜景封神',hot:'130万浏览'},
+    {name:'长江索道',desc:'万里长江第一条空中走廊',hot:'80万浏览'},
+    {name:'磁器口古镇',desc:'千年古镇，陈麻花+毛血旺',hot:'65万浏览'},
+    {name:'李子坝轻轨穿楼',desc:'抖音网红机位，轻轨穿楼',hot:'55万浏览'},
+    {name:'解放碑步行街',desc:'重庆CBD，打卡0公里标志',hot:'45万浏览'},
+    {name:'武隆天生三桥',desc:'变形金刚取景地，天坑奇观',hot:'40万浏览'}
+  ],
+  hotel:[
+    {name:'重庆尼依格罗酒店',desc:'IFS高层江景，俯瞰两江',hot:'50万浏览'},
+    {name:'重庆解放碑威斯汀',desc:'地标位置，天际泳池',hot:'38万浏览'},
+    {name:'重庆洪崖洞民宿',desc:'崖壁民宿，推窗见江',hot:'32万浏览'}
+  ]
+},
+'西安':{
+  food:[
+    {name:'子午路张记肉夹馍',desc:'西安肉夹馍天花板，外酥里嫩',hot:'82万浏览'},
+    {name:'回民街马洪小炒泡馍',desc:'本地人泡馍首选，手掰更香',hot:'68万浏览'},
+    {name:'醉长安',desc:'陕菜馆，葫芦鸡+毛笔酥出圈',hot:'55万浏览'},
+    {name:'魏家凉皮',desc:'西安凉皮连锁王，秘制辣油',hot:'45万浏览'},
+    {name:'老孙家泡馍',desc:'百年泡馍老店，牛羊肉泡馍',hot:'38万浏览'}
+  ],
+  scenic:[
+    {name:'秦始皇兵马俑',desc:'世界第八大奇迹，必去',hot:'160万浏览'},
+    {name:'大唐不夜城',desc:'不倒翁小姐姐+唐风演艺',hot:'110万浏览'},
+    {name:'西安城墙',desc:'13公里城墙骑行，俯瞰古都',hot:'75万浏览'},
+    {name:'大雁塔',desc:'玄奘译经地，音乐喷泉',hot:'60万浏览'},
+    {name:'华清宫',desc:'长恨歌实景演出，温泉宫',hot:'48万浏览'},
+    {name:'陕西历史博物馆',desc:'华夏宝库，免费需预约',hot:'42万浏览'}
+  ],
+  hotel:[
+    {name:'西安W酒店',desc:'大唐不夜城旁，潮牌设计',hot:'45万浏览'},
+    {name:'西安索菲特人民大厦',desc:'古城墙旁法式花园酒店',hot:'38万浏览'},
+    {name:'西安爵怡穆斯林酒店',desc:'回民街旁，大清真寺景观',hot:'30万浏览'}
+  ]
+},
+'长沙':{
+  food:[
+    {name:'超级文和友',desc:'80年代复古风+小龙虾，长沙名片',hot:'92万浏览'},
+    {name:'茶颜悦色',desc:'长沙奶茶天花板，幽兰拿铁必点',hot:'85万浏览'},
+    {name:'天宝兄弟',desc:'小龙虾+臭豆腐，夜宵排队王',hot:'62万浏览'},
+    {name:'费大厨辣椒炒肉',desc:'湘菜灵魂，辣椒炒肉封神',hot:'50万浏览'},
+    {name:'黑色经典臭豆腐',desc:'长沙臭豆腐天花板，外脆内嫩',hot:'42万浏览'}
+  ],
+  scenic:[
+    {name:'橘子洲',desc:'毛爷爷青年艺术雕塑，长沙地标',hot:'100万浏览'},
+    {name:'岳麓山',desc:'四大书院+爱晚亭，秋枫红遍',hot:'70万浏览'},
+    {name:'太平老街',desc:'千年古街+小吃+文创',hot:'55万浏览'},
+    {name:'湖南省博物馆',desc:'辛追夫人+素纱襌衣，国宝级',hot:'48万浏览'},
+    {name:'IFS国金中心',desc:'KAWS屋顶打卡，长沙潮流地标',hot:'40万浏览'}
+  ],
+  hotel:[
+    {name:'长沙W酒店',desc:'湘江边潮牌酒店，夜景绝',hot:'45万浏览'},
+    {name:'长沙瑞吉酒店',desc:'IFS高端，管家服务',hot:'38万浏览'},
+    {name:'长沙君悦酒店',desc:'湘江江景，步行到坡子街',hot:'32万浏览'}
+  ]
+},
+'广州':{
+  food:[
+    {name:'陶陶居',desc:'百年茶楼，虾饺+烧鹅双绝',hot:'88万浏览'},
+    {name:'点都德',desc:'早茶排队王，红米肠+流沙包',hot:'72万浏览'},
+    {name:'银记肠粉',desc:'广州肠粉天花板，布拉肠绝了',hot:'55万浏览'},
+    {name:'陈添记鱼皮',desc:'巷子里的宝藏，爽鱼皮',hot:'45万浏览'},
+    {name:'南信牛奶甜品',desc:'双皮奶发源地，百年甜品',hot:'38万浏览'}
+  ],
+  scenic:[
+    {name:'广州塔(小蛮腰)',desc:'460米高空观景，摩天轮',hot:'95万浏览'},
+    {name:'沙面岛',desc:'欧式建筑群，拍照圣地',hot:'60万浏览'},
+    {name:'长隆欢乐世界',desc:'垂直过山车+大马戏',hot:'55万浏览'},
+    {name:'陈家祠',desc:'岭南建筑艺术明珠',hot:'45万浏览'},
+    {name:'白云山',desc:'城市绿肺，摩星岭日出',hot:'38万浏览'}
+  ],
+  hotel:[
+    {name:'广州富力丽思卡尔顿',desc:'珠江新城核心，江景套房',hot:'48万浏览'},
+    {name:'广州白天鹅宾馆',desc:'沙面岛旁，改革开放第一家五星级',hot:'42万浏览'},
+    {name:'广州四季酒店',desc:'IGC高层，珠江全景',hot:'36万浏览'}
+  ]
+},
+'厦门':{
+  food:[
+    {name:'乌糖沙茶面',desc:'厦门沙茶面天花板，排队30年',hot:'70万浏览'},
+    {name:'1980烧肉粽',desc:'中山路排队王，肉粽+沙茶面',hot:'55万浏览'},
+    {name:'月华沙茶面',desc:'本地人推荐，汤底浓郁',hot:'42万浏览'},
+    {name:'黄则和花生汤',desc:'厦门甜品老字号，花生汤+韭菜盒',hot:'38万浏览'}
+  ],
+  scenic:[
+    {name:'鼓浪屿',desc:'万国建筑+钢琴之岛，文艺必去',hot:'110万浏览'},
+    {name:'南普陀寺',desc:'闽南佛学院+素菜馆',hot:'55万浏览'},
+    {name:'环岛路骑行',desc:'海岸线骑行，最美海景',hot:'48万浏览'},
+    {name:'曾厝垵',desc:'文艺渔村，小吃+民宿',hot:'42万浏览'},
+    {name:'厦门大学',desc:'最美大学，芙蓉隧道涂鸦',hot:'38万浏览'}
+  ],
+  hotel:[
+    {name:'厦门康莱德酒店',desc:'世茂海峡双子塔，海景无敌',hot:'50万浏览'},
+    {name:'厦门安达仕',desc:'闽南设计风，新潮酒店',hot:'38万浏览'}
+  ]
+},
+'南京':{
+  food:[
+    {name:'回味鸭血粉丝',desc:'南京早餐灵魂，鸭血+粉丝',hot:'68万浏览'},
+    {name:'南京大牌档',desc:'金陵小吃集大成，民国风',hot:'55万浏览'},
+    {name:'章云板鸭',desc:'南京盐水鸭天花板',hot:'45万浏览'},
+    {name:'小李汤包',desc:'南京汤包+蟹黄汤包绝',hot:'38万浏览'}
+  ],
+  scenic:[
+    {name:'中山陵',desc:'392级台阶仰望国父',hot:'90万浏览'},
+    {name:'夫子庙+秦淮河',desc:'十里秦淮夜景，灯会',hot:'75万浏览'},
+    {name:'南京博物院',desc:'民国馆穿越体验',hot:'55万浏览'},
+    {name:'明孝陵',desc:'最美600米神道',hot:'48万浏览'},
+    {name:'牛首山',desc:'佛顶宫震撼，地下宫殿',hot:'42万浏览'}
+  ],
+  hotel:[
+    {name:'南京丽思卡尔顿',desc:'德基广场，顶层江景',hot:'42万浏览'},
+    {name:'南京颐和公馆',desc:'颐和路民国别墅区',hot:'35万浏览'}
+  ]
+},
+'大理':{
+  food:[
+    {name:'再回首凉鸡米线',desc:'大理古城必吃，酸辣鲜',hot:'55万浏览'},
+    {name:'段公子',desc:'白族菜+洱海鱼，特色餐厅',hot:'42万浏览'},
+    {name:'杨记乳扇',desc:'大理特色乳扇，酥脆奶香',hot:'35万浏览'}
+  ],
+  scenic:[
+    {name:'洱海环湖',desc:'129公里环湖，骑行+自驾',hot:'95万浏览'},
+    {name:'大理古城',desc:'南诏古国，文艺慢生活',hot:'70万浏览'},
+    {name:'苍山',desc:'19峰18溪，洗马潭索道',hot:'55万浏览'},
+    {name:'双廊古镇',desc:'洱海边文艺小镇，日落绝佳',hot:'48万浏览'},
+    {name:'崇圣寺三塔',desc:'大理地标，千年古塔',hot:'38万浏览'}
+  ],
+  hotel:[
+    {name:'大理洱海天域英迪格',desc:'洱海边设计酒店，无边泳池',hot:'48万浏览'},
+    {name:'大理既见苍山',desc:'苍山脚下民宿，云海日出',hot:'35万浏览'}
+  ]
+}
+};
+
+// 热门搜索城市
+var HOT_CITIES = [
+  {name:'成都',emoji:'🐼'},{name:'北京',emoji:'🏯'},{name:'上海',emoji:'🏙'},{name:'杭州',emoji:'🌸'},
+  {name:'重庆',emoji:'🌶'},{name:'西安',emoji:'⚔'},{name:'长沙',emoji:'🍵'},{name:'广州',emoji:'🥢'},
+  {name:'厦门',emoji:'🌊'},{name:'南京',emoji:'⛰'},{name:'三亚',emoji:'🌴'},{name:'大理',emoji:'🏔'}
+];
+
+var HOT_SEARCHES = ['美食推荐','景点攻略','网红酒店','必去打卡','地道小吃','隐藏玩法'];
+
+var timelineData=[];
+var currentCity='';
+var selectedType='food';
+var tlFilter='all';
+var isSearching=false;
+var searchCache={};
+
+function init(){
+  loadTimeline();
+  document.getElementById('search-input').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch()});
+  renderHotCities();
+  renderHotTags();
+  renderTimeline();
+}
+
+function renderHotCities(){
+  var html='<div class="hot-cities-title">热门城市，一键搜索</div><div class="city-grid">';
+  for(var i=0;i<HOT_CITIES.length;i++){
+    var c=HOT_CITIES[i];
+    html+='<div class="city-card" onclick="quickSearch(\''+escAttr(c.name)+'\')"><div class="emoji">'+c.emoji+'</div><div class="name">'+esc(c.name)+'</div></div>';
+  }
+  html+='</div>';
+  html+='<div style="margin-top:16px;padding:16px;background:var(--white);border-radius:12px">';
+  html+='<div style="font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:8px">支持搜索任意地点</div>';
+  html+='<div style="font-size:12px;color:var(--text-light);line-height:1.8">';
+  html+='输入<strong>城市+品类</strong>精准搜索，如：<br>';
+  html+='<span style="color:var(--red)">成都火锅</span> · <span style="color:var(--blue)">杭州景点</span> · <span style="color:var(--orange)">三亚酒店</span><br>';
+  html+='<span style="color:var(--purple)">拉萨美食</span> · <span style="color:var(--cyan)">青岛海鲜</span> · <span style="color:var(--green)">丽江民宿</span>';
+  html+='</div></div>';
+  document.getElementById('hot-cities').innerHTML=html;
+}
+
+function renderHotTags(){
+  var html='';
+  for(var i=0;i<HOT_SEARCHES.length;i++){
+    html+='<span class="hot-tag" onclick="quickSearch(\''+escAttr(HOT_SEARCHES[i])+'\')">'+esc(HOT_SEARCHES[i])+'</span>';
+  }
+  document.getElementById('hot-tags').innerHTML=html;
+}
+
+function quickSearch(q){
+  document.getElementById('search-input').value=q;
+  doSearch();
+}
+
+function loadTimeline(){try{var s=localStorage.getItem('travel_timeline_v2');if(s)timelineData=JSON.parse(s)}catch(e){timelineData=[]}}
+function saveTimeline(){try{localStorage.setItem('travel_timeline_v2',JSON.stringify(timelineData))}catch(e){}}
+
+// ============ 核心搜索逻辑 ============
+async function doSearch(){
+  var q=document.getElementById('search-input').value.trim();
+  if(!q){toast('请输入城市或地点名称');return}
+  if(isSearching)return;
+  isSearching=true;
+  var btn=document.getElementById('search-btn');
+  btn.disabled=true;btn.textContent='搜索中...';
+  
+  showLoading(q);
+  
+  try{
+    // 解析搜索意图
+    var intent=parseSearchIntent(q);
+    currentCity=intent.city;
+    
+    // 1. 尝试实时搜索小红书
+    var xhsResults=await searchXHS(intent.keyword);
+    
+    // 2. 获取内置数据库
+    var dbResults=getDBResults(intent);
+    
+    // 3. 合并渲染
+    renderAllResults(intent,xhsResults,dbResults);
+  }catch(e){
+    console.error('搜索出错:',e);
+    // 降级到仅内置数据
+    var intent2=parseSearchIntent(q);
+    currentCity=intent2.city;
+    var dbResults=getDBResults(intent2);
+    if(dbResults.hasData){
+      renderAllResults(intent2,null,dbResults);
+    }else{
+      renderNoResult(intent2);
+    }
+  }
+  
+  isSearching=false;
+  btn.disabled=false;btn.textContent='搜索';
+}
+
+// 解析搜索意图
+function parseSearchIntent(q){
+  q=q.replace(/市$/,'').trim();
+  var city='';var category='';var keyword='';
+  
+  // 尝试匹配城市名
+  var cityNames=Object.keys(CITY_DB);
+  for(var i=0;i<cityNames.length;i++){
+    if(q.indexOf(cityNames[i])===0){
+      city=cityNames[i];
+      q=q.substring(city.length).trim();
+      break;
+    }
+  }
+  
+  // 匹配分类关键词
+  var foodKw=['美食','吃','火锅','小吃','串串','烤肉','奶茶','面','饭','餐厅','馆子','宵夜'];
+  var scenicKw=['景点','玩','旅游','公园','古镇','博物馆','寺','山','湖','海','岛','打卡','必去'];
+  var hotelKw=['酒店','住','民宿','宾馆','住宿','旅舍'];
+  
+  for(var i=0;i<foodKw.length;i++){if(q.indexOf(foodKw[i])>=0){category='food';break}}
+  if(!category){for(var i=0;i<scenicKw.length;i++){if(q.indexOf(scenicKw[i])>=0){category='scenic';break}}}
+  if(!category){for(var i=0;i<hotelKw.length;i++){if(q.indexOf(hotelKw[i])>=0){category='hotel';break}}}
+  
+  // 去掉分类关键词后作为搜索词
+  keyword=q;
+  for(var i=0;i<foodKw.concat(scenicKw,hotelKw).length;i++){
+    keyword=keyword.replace(foodKw.concat(scenicKw,hotelKw)[i],'').trim();
+  }
+  if(!keyword)keyword=city||q;
+  
+  return {city:city,category:category,keyword:city?city+' '+q:q,original:document.getElementById('search-input').value.trim()};
+}
+
+// ============ 小红书实时搜索（通过CORS代理抓取） ============
+async function searchXHS(keyword){
+  // 检查缓存
+  if(searchCache[keyword]&&(Date.now()-searchCache[keyword].ts<600000)){
+    return searchCache[keyword].data;
+  }
+  
+  var results=await fetchViaProxies(keyword);
+  if(results&&results.length>0){
+    searchCache[keyword]={data:results,ts:Date.now()};
+  }
+  return results;
+}
+
+async function fetchViaProxies(keyword){
+  // 尝试从小红书网页版搜索
+  var xhsUrl='https://www.xiaohongshu.com/search_result?keyword='+encodeURIComponent(keyword)+'&source=web_search_result_notes';
+  
+  for(var i=0;i<CORS_PROXIES.length;i++){
+    try{
+      var proxyUrl=CORS_PROXIES[i](xhsUrl);
+      var resp=await fetchWithTimeout(proxyUrl,8000);
+      if(!resp||!resp.ok)continue;
+      var html=await resp.text();
+      var parsed=parseXHSHTML(html,keyword);
+      if(parsed&&parsed.length>0)return parsed;
+    }catch(e){
+      console.log('代理'+i+'失败:',e.message);
+      continue;
+    }
+  }
+  
+  // 所有代理都失败，尝试Bing搜索作为备选
+  try{
+    var bingUrl='https://www.bing.com/search?q='+encodeURIComponent(keyword+' 小红书 推荐 site:xiaohongshu.com');
+    for(var i=0;i<2;i++){
+      try{
+        var proxyUrl=CORS_PROXIES[i](bingUrl);
+        var resp=await fetchWithTimeout(proxyUrl,8000);
+        if(!resp||!resp.ok)continue;
+        var html=await resp.text();
+        var parsed=parseBingHTML(html,keyword);
+        if(parsed&&parsed.length>0)return parsed;
+      }catch(e){continue}
+    }
+  }catch(e){}
+  
+  return null;
+}
+
+function fetchWithTimeout(url,ms){
+  return Promise.race([
+    fetch(url),
+    new Promise(function(_,reject){setTimeout(function(){reject(new Error('timeout'))},ms)})
+  ]);
+}
+
+// 解析小红书搜索结果HTML
+function parseXHSHTML(html,keyword){
+  var results=[];
+  try{
+    // 尝试从JSON-LD或script标签提取数据
+    var scriptMatch=html.match(/window\.__INITIAL_STATE__\s*=\s*({.+?})\s*<\/script>/);
+    if(scriptMatch){
+      try{
+        var jsonStr=scriptMatch[1].replace(/undefined/g,'null');
+        var data=JSON.parse(jsonStr);
+        if(data&&data.search&&data.search.notes){
+          var notes=data.search.notes;
+          for(var i=0;i<Math.min(notes.length,10);i++){
+            var n=notes[i];
+            results.push({
+              title:n.title||n.note_card&&n.note_card.title||'',
+              desc:n.note_card&&n.note_card.desc||'',
+              author:n.user&&n.user.nickname||'',
+              likes:n.note_card&&n.note_card.interactInfo&&n.note_card.interactInfo.likedCount||'',
+              type:'xhs',
+              keyword:keyword
+            });
+          }
+        }
+      }catch(e){console.log('解析小红书JSON失败',e)}
+    }
+    
+    // 如果JSON解析失败，尝试从HTML提取
+    if(results.length===0){
+      var noteRegex=/class="note-item"[^>]*>[\s\S]*?<a[^>]*title="([^"]*)"[^>]*>/g;
+      var match;
+      while((match=noteRegex.exec(html))!==null&&results.length<10){
+        results.push({title:match[1],desc:'',author:'',likes:'',type:'xhs',keyword:keyword});
+      }
+    }
+    
+    // 再尝试另一种模式
+    if(results.length===0){
+      var sections=html.split(/<section[^>]*class="note-item/);
+      for(var i=1;i<sections.length&&i<=10;i++){
+        var titleMatch=sections[i].match(/title="([^"]*)"/);
+        if(titleMatch){
+          var authorMatch=sections[i].match(/class="name"[^>]*>([^<]*)</);
+          var likeMatch=sections[i].match(/class="like-wrapper[^"]*"[^>]*>[\s\S]*?(\d[\d万+]*)\s*<\/span>/);
+          results.push({
+            title:titleMatch[1],
+            desc:'',
+            author:authorMatch?authorMatch[1].trim():'',
+            likes:likeMatch?likeMatch[1]:'',
+            type:'xhs',
+            keyword:keyword
+          });
+        }
+      }
+    }
+  }catch(e){console.log('解析XHS HTML失败',e)}
+  return results;
+}
+
+// 解析Bing搜索结果HTML
+function parseBingHTML(html,keyword){
+  var results=[];
+  try{
+    // 提取Bing搜索结果中的小红书链接
+    var liRegex=/<li class="b_algo">[\s\S]*?<a href="([^"]*xiaohongshu[^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/g;
+    var match;
+    while((match=liRegex.exec(html))!==null&&results.length<10){
+      var title=match[2].replace(/<[^>]*>/g,'').trim();
+      var desc=match[3].replace(/<[^>]*>/g,'').trim().substring(0,80);
+      results.push({title:title,desc:desc,url:match[1],author:'',likes:'',type:'bing',keyword:keyword});
+    }
+    
+    // 备选模式
+    if(results.length===0){
+      var linkRegex=/<cite[^>]*>([\s\S]*?)<\/cite>/g;
+      var titles=html.match(/<h2><a[^>]*>([\s\S]*?)<\/a><\/h2>/g);
+      if(titles){
+        for(var i=0;i<Math.min(titles.length,10);i++){
+          var t=titles[i].replace(/<[^>]*>/g,'').trim();
+          if(t)results.push({title:t,desc:'',author:'',likes:'',type:'bing',keyword:keyword});
+        }
+      }
+    }
+  }catch(e){}
+  return results;
+}
+
+// 获取内置数据库结果
+function getDBResults(intent){
+  var city=intent.city;
+  var cat=intent.category;
+  var result={hasData:false,food:[],scenic:[],hotel:[]};
+  
+  if(city&&CITY_DB[city]){
+    result.food=CITY_DB[city].food||[];
+    result.scenic=CITY_DB[city].scenic||[];
+    result.hotel=CITY_DB[city].hotel||[];
+    if(result.food.length||result.scenic.length||result.hotel.length)result.hasData=true;
+  }
+  
+  // 如果指定了分类，只返回对应分类
+  if(cat&&result.hasData){
+    if(cat==='food'){result.scenic=[];result.hotel=[]}
+    else if(cat==='scenic'){result.food=[];result.hotel=[]}
+    else if(cat==='hotel'){result.food=[];result.scenic=[]}
+  }
+  
+  return result;
+}
+
+// ============ 渲染结果 ============
+function showLoading(q){
+  document.getElementById('search-content').innerHTML=
+    '<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">正在搜索「'+esc(q)+'」的小红书实时排名...</div><div style="font-size:12px;color:var(--text-light);margin-top:8px">数据来源：小红书实时搜索 + 内置数据库</div></div>';
+}
+
+function renderAllResults(intent,xhsResults,dbResults){
+  var html='<div class="result-city">🔥 '+esc(intent.original)+' · 实时热度榜</div>';
+  
+  // 小红书实时搜索结果
+  if(xhsResults&&xhsResults.length>0){
+    html+='<div class="section-title"><span class="section-icon icon-xhs">📕</span>小红书实时搜索<span style="font-size:11px;color:var(--text-light);font-weight:400;margin-left:4px">（实时数据）</span></div>';
+    for(var i=0;i<xhsResults.length;i++){
+      var r=xhsResults[i];
+      var numCls=i<1?'top1':i<2?'top2':i<3?'top3':'normal';
+      html+='<div class="live-card"><div class="rank-num '+numCls+'">'+(i+1)+'</div>';
+      html+='<div class="rank-info"><div class="rank-name">'+esc(r.title)+'<span class="live-badge">实时</span></div>';
+      if(r.desc)html+='<div class="rank-desc">'+esc(r.desc)+'</div>';
+      if(r.author)html+='<div class="live-author">@ '+esc(r.author)+'</div>';
+      if(r.likes)html+='<div class="live-likes">❤ '+esc(r.likes)+'</div>';
+      html+='</div><div class="rank-actions">';
+      html+='<button class="app-btn app-btn-xhs" onclick="openXHSWeb(\''+escAttr(intent.keyword)+'\')">查看</button>';
+      html+='</div></div>';
+    }
+  }
+  
+  // 内置数据库结果
+  if(dbResults.hasData){
+    if(dbResults.food.length){
+      html+=renderSection('当地热门美食',dbResults.food,'food','🍜',intent.city||intent.original);
+    }
+    if(dbResults.scenic.length){
+      html+=renderSection('当地热门景点',dbResults.scenic,'scenic','🎡',intent.city||intent.original);
+    }
+    if(dbResults.hotel.length){
+      html+=renderSection('当地热门酒店',dbResults.hotel,'hotel','🏨',intent.city||intent.original);
+    }
+  }
+  
+  // 如果都没有数据，且小红书也没搜到
+  if((!xhsResults||xhsResults.length===0)&&!dbResults.hasData){
+    renderNoResult(intent);
+    return;
+  }
+  
+  // 底部：直接跳转搜索按钮
+  html+='<div style="margin-top:16px;padding:16px;background:var(--white);border-radius:12px;text-align:center">';
+  html+='<div style="font-size:13px;font-weight:600;margin-bottom:10px">没有找到想要的结果？</div>';
+  html+='<div style="display:flex;gap:8px;justify-content:center">';
+  html+='<button class="app-btn app-btn-xhs" style="padding:8px 16px;font-size:13px" onclick="openXHSWeb(\''+escAttr(intent.keyword)+'\')">📕 小红书搜索</button>';
+  html+='<button class="app-btn app-btn-dy" style="padding:8px 16px;font-size:13px" onclick="openDYWeb(\''+escAttr(intent.keyword)+'\')">🎵 抖音搜索</button>';
+  html+='</div></div>';
+  
+  document.getElementById('search-content').innerHTML=html;
+}
+
+function renderNoResult(intent){
+  var kw=intent.original||intent.keyword;
+  var html='<div class="empty-state"><div class="icon">🔍</div><p>正在为你搜索「'+esc(kw)+'」的实时数据</p><p style="font-size:12px;margin-top:4px">点击下方按钮直接在小红书/抖音中搜索</p></div>';
+  
+  // 推荐搜索
+  html+='<div style="margin-top:16px">';
+  html+='<div class="section-title"><span class="section-icon icon-xhs">📕</span>直接搜索小红书</div>';
+  
+  // 为不同分类生成搜索词
+  var searchTerms=[
+    {kw:kw+' 美食推荐',label:'美食推荐',emoji:'🍜',type:'food'},
+    {kw:kw+' 景点攻略',label:'景点攻略',emoji:'🎡',type:'scenic'},
+    {kw:kw+' 酒店推荐',label:'酒店住宿',emoji:'🏨',type:'hotel'},
+    {kw:kw+' 必去打卡',label:'必去打卡',emoji:'📸',type:'scenic'},
+    {kw:kw+' 隐藏玩法',label:'隐藏玩法',emoji:'✨',type:'scenic'},
+    {kw:kw+' 地道小吃',label:'地道小吃',emoji:'🥟',type:'food'}
+  ];
+  
+  for(var i=0;i<searchTerms.length;i++){
+    var s=searchTerms[i];
+    html+='<div class="rank-card" onclick="openXHSWeb(\''+escAttr(s.kw)+'\')" style="cursor:pointer">';
+    html+='<div class="rank-num normal">'+s.emoji+'</div>';
+    html+='<div class="rank-info"><div class="rank-name">'+esc(s.kw)+'</div>';
+    html+='<div class="rank-desc">点击在小红书中搜索</div></div>';
+    html+='<div class="rank-actions"><button class="app-btn app-btn-xhs">搜索</button></div>';
+    html+='</div>';
+  }
+  
+  html+='</div>';
+  
+  // 抖音搜索入口
+  html+='<div style="margin-top:16px">';
+  html+='<div class="section-title"><span class="section-icon" style="background:#1A1A1A;color:#fff">🎵</span>直接搜索抖音</div>';
+  html+='<div class="rank-card" onclick="openDYWeb(\''+escAttr(kw+' 美食')+'\')" style="cursor:pointer">';
+  html+='<div class="rank-num normal">🍜</div>';
+  html+='<div class="rank-info"><div class="rank-name">'+esc(kw)+' 美食</div><div class="rank-desc">在抖音中搜索美食视频</div></div>';
+  html+='<div class="rank-actions"><button class="app-btn app-btn-dy">搜索</button></div>';
+  html+='</div>';
+  html+='<div class="rank-card" onclick="openDYWeb(\''+escAttr(kw+' 景点')+'\')" style="cursor:pointer">';
+  html+='<div class="rank-num normal">🎡</div>';
+  html+='<div class="rank-info"><div class="rank-name">'+esc(kw)+' 景点</div><div class="rank-desc">在抖音中搜索景点视频</div></div>';
+  html+='<div class="rank-actions"><button class="app-btn app-btn-dy">搜索</button></div>';
+  html+='</div>';
+  html+='</div>';
+  
+  document.getElementById('search-content').innerHTML=html;
+}
+
+function renderSection(title,arr,type,emoji,city){
+  var iconCls=type==='food'?'icon-food':type==='scenic'?'icon-scenic':'icon-hotel';
+  var html='<div class="section-title"><span class="section-icon '+iconCls+'">'+emoji+'</span>'+title+'</div>';
+  if(!arr||!arr.length){return html+'<div style="text-align:center;padding:16px;color:var(--text-light);font-size:13px">暂无推荐</div>'}
+  for(var i=0;i<arr.length;i++){
+    var r=arr[i];var numCls=i<1?'top1':i<2?'top2':i<3?'top3':'normal';
+    html+='<div class="rank-card"><div class="rank-num '+numCls+'">'+(i+1)+'</div>';
+    html+='<div class="rank-info"><div class="rank-name">'+esc(r.name)+'</div><div class="rank-desc">'+esc(r.desc)+'</div><div class="rank-hot">🔥 '+esc(r.hot)+'</div></div>';
+    html+='<div class="rank-actions">';
+    html+='<button class="app-btn app-btn-add" onclick="addToTimeline(\''+escAttr(city)+'\',\''+escAttr(r.name)+'\',\''+type+'\')">+打卡</button>';
+    html+='<button class="app-btn app-btn-xhs" onclick="openXHS(\''+escAttr(r.name+' '+city)+'\')">小红书</button>';
+    html+='<button class="app-btn app-btn-dy" onclick="openDY(\''+escAttr(r.name+' '+city)+'\')">抖音</button>';
+    html+='</div></div>';
+  }
+  return html;
+}
+
+// ============ APP跳转 ============
+function openXHS(kw){
+  var isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent);
+  if(isMobile){
+    // 手机端：尝试拉起APP
+    var url='xhsdiscover://search/result?keyword='+encodeURIComponent(kw);
+    tryOpenApp(url,'小红书',function(){
+      // APP拉起失败，打开网页版
+      window.open('https://www.xiaohongshu.com/search_result?keyword='+encodeURIComponent(kw)+'&source=web_search_result_notes','_blank');
+    });
+  }else{
+    // PC端：直接打开网页版
+    window.open('https://www.xiaohongshu.com/search_result?keyword='+encodeURIComponent(kw)+'&source=web_search_result_notes','_blank');
+  }
+}
+
+function openXHSWeb(kw){
+  window.open('https://www.xiaohongshu.com/search_result?keyword='+encodeURIComponent(kw)+'&source=web_search_result_notes','_blank');
+}
+
+function openDY(kw){
+  var isMobile=/Mobi|Android|iPhone/i.test(navigator.userAgent);
+  if(isMobile){
+    var url='snssdk1128://search/result?keyword='+encodeURIComponent(kw);
+    tryOpenApp(url,'抖音',function(){
+      window.open('https://www.douyin.com/search/'+encodeURIComponent(kw),'_blank');
+    });
+  }else{
+    window.open('https://www.douyin.com/search/'+encodeURIComponent(kw),'_blank');
+  }
+}
+
+function openDYWeb(kw){
+  window.open('https://www.douyin.com/search/'+encodeURIComponent(kw),'_blank');
+}
+
+function tryOpenApp(scheme,appName,fallback){
+  var iframe=document.createElement('iframe');iframe.style.display='none';iframe.src=scheme;document.body.appendChild(iframe);
+  var start=Date.now();var handled=false;
+  var timer=setTimeout(function(){
+    if(!handled&&Date.now()-start<2500){
+      if(fallback)fallback();
+      else showAppDialog(appName);
+    }
+  },1500);
+  window.addEventListener('blur',function onBlur(){handled=true;clearTimeout(timer);window.removeEventListener('blur',onBlur)},{once:true});
+  setTimeout(function(){try{document.body.removeChild(iframe)}catch(e){}},3000);
+}
+
+function showAppDialog(appName){
+  document.getElementById('dialog-title').textContent='未检测到'+appName;
+  document.getElementById('dialog-msg').textContent='请先安装'+appName+'APP后再使用此功能';
+  document.getElementById('dialog-bg').style.display='block';document.getElementById('app-dialog').style.display='block';
+}
+function closeAppDialog(){document.getElementById('dialog-bg').style.display='none';document.getElementById('app-dialog').style.display='none'}
+
+// ============ 时间线管理 ============
+function addToTimeline(city,name,type){
+  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:type,date:new Date().toISOString().slice(0,10),note:'',status:'pending',createdAt:new Date().toISOString()};
+  timelineData.push(rec);saveTimeline();renderTimeline();toast('已加入打卡计划');
+}
+function showAddModal(){
+  selectedType='food';
+  document.getElementById('m-city').value=currentCity||'';
+  document.getElementById('m-name').value='';document.getElementById('m-date').value='';document.getElementById('m-note').value='';
+  updateTypePicker();openModal('modal-add');
+}
+function pickType(t){selectedType=t;updateTypePicker()}
+function updateTypePicker(){
+  var opts=document.querySelectorAll('.type-opt');
+  for(var i=0;i<opts.length;i++){var t=opts[i].getAttribute('data-type');opts[i].className='type-opt'+(t===selectedType?' sel-'+t:'')}
+}
+function saveManual(){
+  var city=document.getElementById('m-city').value.trim();var name=document.getElementById('m-name').value.trim();
+  if(!city||!name){toast('请填写城市和地点名称');return}
+  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:selectedType,date:document.getElementById('m-date').value||new Date().toISOString().slice(0,10),note:document.getElementById('m-note').value.trim(),status:'pending',createdAt:new Date().toISOString()};
+  timelineData.push(rec);saveTimeline();renderTimeline();closeModal('modal-add');toast('打卡计划已添加');
+  switchTab('timeline',document.querySelector('[data-tab="timeline"]'));
+}
+function renderTimeline(){
+  var sorted=timelineData.slice().sort(function(a,b){return(b.date||'').localeCompare(a.date||'')});
+  if(tlFilter==='food')sorted=sorted.filter(function(r){return r.type==='food'});
+  else if(tlFilter==='scenic')sorted=sorted.filter(function(r){return r.type==='scenic'});
+  else if(tlFilter==='hotel')sorted=sorted.filter(function(r){return r.type==='hotel'});
+  else if(tlFilter==='pending')sorted=sorted.filter(function(r){return r.status==='pending'});
+  else if(tlFilter==='done')sorted=sorted.filter(function(r){return r.status==='done'});
+  var statsEl=document.getElementById('timeline-stats');var filterEl=document.getElementById('timeline-filter');
+  if(timelineData.length>0){
+    statsEl.style.display='flex';filterEl.style.display='flex';
+    document.getElementById('tl-total').textContent=timelineData.length;
+    document.getElementById('tl-pending').textContent=timelineData.filter(function(r){return r.status==='pending'}).length;
+    document.getElementById('tl-done').textContent=timelineData.filter(function(r){return r.status==='done'}).length;
+  }else{statsEl.style.display='none';filterEl.style.display='none'}
+  if(!sorted.length){document.getElementById('timeline-content').innerHTML='<div class="empty-state"><div class="icon">📅</div><p>'+(timelineData.length?'当前筛选无结果':'还没有旅行打卡计划')+'</p></div>';return}
+  var groups={};for(var i=0;i<sorted.length;i++){var d=sorted[i].date||'未定日期';if(!groups[d])groups[d]=[];groups[d].push(sorted[i])}
+  var dates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a)});
+  var html='';
+  for(var di=0;di<dates.length;di++){
+    var dateKey=dates[di];var items=groups[dateKey];
+    html+='<div class="date-group"><div class="date-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+esc(dateKey)+'</div>';
+    for(var j=0;j<items.length;j++){
+      var r=items[j];var typeLabel=r.type==='food'?'吃':r.type==='scenic'?'玩':'住';var typeEmoji=r.type==='food'?'🍜':r.type==='scenic'?'🎡':'🏨';var isDone=r.status==='done';
+      html+='<div class="tl-card type-'+r.type+(isDone?' done':'')+'"><div class="tl-top"><span class="tl-type type-'+r.type+'">'+typeEmoji+' '+typeLabel+'</span><button class="tl-status '+(isDone?'completed':'pending')+'" onclick="toggleStatus('+r.id+')">'+(isDone?'已打卡':'待打卡')+'</button></div>';
+      html+='<div class="tl-name">'+esc(r.name)+'</div><div class="tl-city">📍 '+esc(r.city)+'</div>';
+      if(r.note)html+='<div class="tl-note">💬 '+esc(r.note)+'</div>';
+      html+='<div class="tl-actions"><button class="tl-act-btn done-btn" onclick="toggleStatus('+r.id+')">'+(isDone?'取消完成':'完成打卡')+'</button><button class="tl-act-btn" onclick="editRecord('+r.id+')">编辑</button><button class="tl-act-btn del" onclick="deleteRecord('+r.id+')">删除</button></div></div>';
+    }
+    html+='</div>';
+  }
+  document.getElementById('timeline-content').innerHTML=html;
+}
+function toggleStatus(id){for(var i=0;i<timelineData.length;i++){if(timelineData[i].id===id){timelineData[i].status=timelineData[i].status==='done'?'pending':'done';break}}saveTimeline();renderTimeline();toast('状态已更新')}
+function deleteRecord(id){if(!confirm('确定删除此打卡计划？'))return;timelineData=timelineData.filter(function(r){return r.id!==id});saveTimeline();renderTimeline();toast('已删除')}
+function editRecord(id){
+  var r=timelineData.find(function(r){return r.id===id});if(!r)return;
+  document.getElementById('e-id').value=id;document.getElementById('e-city').value=r.city;document.getElementById('e-name').value=r.name;document.getElementById('e-date').value=r.date||'';document.getElementById('e-note').value=r.note||'';
+  openModal('modal-edit');
+}
+function saveEdit(){
+  var id=parseInt(document.getElementById('e-id').value);
+  for(var i=0;i<timelineData.length;i++){if(timelineData[i].id===id){timelineData[i].city=document.getElementById('e-city').value.trim()||timelineData[i].city;timelineData[i].name=document.getElementById('e-name').value.trim()||timelineData[i].name;timelineData[i].date=document.getElementById('e-date').value||timelineData[i].date;timelineData[i].note=document.getElementById('e-note').value.trim();break}}
+  saveTimeline();renderTimeline();closeModal('modal-edit');toast('已更新');
+}
+function filterTimeline(f,el){tlFilter=f;document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('active')});if(el)el.classList.add('active');renderTimeline()}
+function exportData(){
+  if(!timelineData.length){toast('暂无数据可导出');return}
+  var bom='\uFEFF';var csv=bom+'城市,地点名称,类型,计划日期,备注,状态\n';var typeMap={food:'美食',scenic:'景点',hotel:'酒店'};
+  for(var i=0;i<timelineData.length;i++){var r=timelineData[i];csv+='"'+(r.city||'').replace(/"/g,'""')+'","'+(r.name||'').replace(/"/g,'""')+'",'+(typeMap[r.type]||r.type)+','+(r.date||'')+',"'+(r.note||'').replace(/"/g,'""')+'",'++(r.status==='done'?'已打卡':'待打卡')+'\n'}
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='旅行打卡_'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('导出成功');
+}
+function switchTab(tab,btn){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.getElementById('page-'+tab).classList.add('active');document.querySelectorAll('.tab-item').forEach(function(b){b.classList.remove('active')});btn.classList.add('active')}
+function openModal(id){document.getElementById(id).classList.add('show')}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+function esc(s){if(!s)return '';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function escAttr(s){return s?s.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function toast(msg){var wrap=document.getElementById('toast-wrap');wrap.innerHTML='<div class="toast-msg">'+esc(msg)+'</div>';setTimeout(function(){wrap.innerHTML=''},2000)}
+init();
+</script>
+</body>
+</html>
