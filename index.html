@@ -1212,35 +1212,36 @@ function renderTimeline(){
   var groups={};for(var i=0;i<sorted.length;i++){var d=sorted[i].date||'未定日期';if(!groups[d])groups[d]=[];groups[d].push(sorted[i])}
   var allDates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a)});
 
-  // 近8天：从今天往前推8天的日期
+  // 近8天：从今天往后推8天（今天+未来8天）
   var today=new Date();var todayStr=today.toISOString().slice(0,10);var recent8=[];
-  for(var i=0;i<8;i++){var t=new Date(today);t.setDate(t.getDate()-i);recent8.push(t.toISOString().slice(0,10))}
+  for(var i=0;i<8;i++){var t=new Date(today);t.setDate(t.getDate()+i);recent8.push(t.toISOString().slice(0,10))}
 
   // 是否处于搜索模式
   var searchKw=(window._tlSearchKw||'').trim();
+  var searchDate=(window._tlSearchDate||'').trim();
   var html='';
 
-  // 顶部搜索栏
+  // 顶部搜索栏：文本搜索地点名/城市名 + 日期选择器
   html+='<div class="tl-date-search">';
-  html+='<input id="tl-search-input" placeholder="搜索日期(如2026-07-25)或地点名" value="'+esc(searchKw)+'">';
-  html+='<button class="search-go" onclick="doTimelineSearch()">搜索</button>';
+  html+='<input id="tl-search-input" placeholder="搜索地点或城市名" value="'+esc(searchKw)+'">';
+  html+='<input id="tl-date-picker" type="date" value="'+esc(searchDate)+'" onchange="doTimelineDateSearch(this.value)" title="按日期搜索" style="width:36px;min-width:36px;padding:8px;border-radius:20px;border:1px solid var(--border);cursor:pointer;font-size:14px">';
   html+='</div>';
 
   var displayDates=[];
   if(searchKw){
-    // 搜索模式：只显示匹配的日期/地点
+    // 地点名/城市名搜索：覆盖显示
     for(var i=0;i<allDates.length;i++){
       var dk=allDates[i];var items=groups[dk];
-      // 日期匹配
-      if(dk.indexOf(searchKw)>=0){displayDates.push(dk);continue}
-      // 地点名匹配
       var nameMatch=false;for(var j=0;j<items.length;j++){if(items[j].name.indexOf(searchKw)>=0||items[j].city.indexOf(searchKw)>=0){nameMatch=true;break}}
       if(nameMatch)displayDates.push(dk);
     }
-    // 搜索结果标签
     html+='<div class="tl-search-result-tag">搜索"'+esc(searchKw)+'" · '+displayDates.length+'天 <button onclick="clearTimelineSearch()">&times;</button></div>';
+  }else if(searchDate){
+    // 日期搜索：覆盖显示
+    if(groups[searchDate])displayDates=[searchDate];
+    html+='<div class="tl-search-result-tag">'+esc(searchDate)+' · '+(displayDates.length?'1天':'0条')+' <button onclick="clearTimelineSearch()">&times;</button></div>';
   }else{
-    // 默认模式：只显示近8天
+    // 默认模式：只显示近8天（今天往后）
     for(var i=0;i<allDates.length;i++){
       if(allDates[i]==='未定日期'||recent8.indexOf(allDates[i])>=0){
         displayDates.push(allDates[i]);
@@ -1250,14 +1251,14 @@ function renderTimeline(){
 
   // 渲染日期分组
   if(!displayDates.length){
-    html+='<div class="empty-state"><div class="icon">🔍</div><p>'+(searchKw?'没有匹配的结果':'近8天没有打卡记录')+'</p></div>';
+    html+='<div class="empty-state"><div class="icon">🔍</div><p>'+(searchKw||searchDate?'没有匹配的结果':'近8天没有打卡记录')+'</p></div>';
   }
   for(var di=0;di<displayDates.length;di++){
     var dateKey=displayDates[di];var items=groups[dateKey];
     var isToday=dateKey===todayStr;
-    var isYesterday='';
-    if(!isToday&&dateKey!=='未定日期'){var yd=new Date(today);yd.setDate(yd.getDate()-1);if(dateKey===yd.toISOString().slice(0,10))isYesterday=' (昨天)'}
-    var dateName=dateKey==='未定日期'?'未定日期':dateKey+(isToday?' (今天)':isYesterday);
+    var isTomorrow='';
+    if(!isToday&&dateKey!=='未定日期'){var tm=new Date(today);tm.setDate(tm.getDate()+1);if(dateKey===tm.toISOString().slice(0,10))isTomorrow=' (明天)'}
+    var dateName=dateKey==='未定日期'?'未定日期':dateKey+(isToday?' (今天)':isTomorrow);
     var doneCount=items.filter(function(r){return r.status==='done'}).length;
     html+='<div class="date-group" data-date="'+esc(dateKey)+'">';
     html+='<div class="date-label" onclick="toggleDateGroup(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+esc(dateName)+'<span style="margin-left:4px;font-size:11px;font-weight:400;color:var(--text-light)">'+doneCount+'/'+items.length+'</span><span class="toggle-icon">▼</span></div>';
@@ -1275,28 +1276,26 @@ function renderTimeline(){
     html+='</div></div>';
   }
 
-  // 默认模式下，提示可搜索更早记录
-  if(!searchKw){
-    var olderCount=0;for(var i=0;i<allDates.length;i++){if(recent8.indexOf(allDates[i])<0&&allDates[i]!=='未定日期')olderCount+=groups[allDates[i]].length}
-    if(olderCount>0){
-      html+='<div class="tl-older-btn" onclick="document.getElementById(\'tl-search-input\').focus()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>还有 '+olderCount+' 条更早记录，搜索查看</div>';
-    }
-  }
-
   document.getElementById('timeline-content').innerHTML=html;
   // 搜索框回车
   var searchInput=document.getElementById('tl-search-input');
   if(searchInput){searchInput.addEventListener('keydown',function(e){if(e.key==='Enter')doTimelineSearch()})}
 }
 
-// 时间线搜索
+// 时间线文本搜索
 function doTimelineSearch(){
   var val=document.getElementById('tl-search-input').value.trim();
-  window._tlSearchKw=val;
+  window._tlSearchKw=val;window._tlSearchDate='';
+  renderTimeline();
+}
+// 时间线日期搜索
+function doTimelineDateSearch(val){
+  if(val){window._tlSearchDate=val;window._tlSearchKw=''}
+  else{window._tlSearchDate=''}
   renderTimeline();
 }
 function clearTimelineSearch(){
-  window._tlSearchKw='';
+  window._tlSearchKw='';window._tlSearchDate='';
   renderTimeline();
 }
 
