@@ -103,8 +103,16 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC"
 .add-manual-btn:active{opacity:.85}
 .add-manual-btn svg{width:14px;height:14px}
 .date-group{margin-bottom:16px}
-.date-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:8px;padding:0 4px}
+.date-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:8px;padding:0 4px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .date-label svg{width:14px;height:14px}
+.date-label .toggle-icon{margin-left:auto;font-size:10px;transition:transform .2s}
+.date-label .toggle-icon.collapsed{transform:rotate(-90deg)}
+.date-group-body{overflow:hidden;transition:max-height .3s ease}
+.date-group-body.collapsed{max-height:0 !important}
+.tl-search-bar{display:flex;gap:8px;margin-bottom:12px;align-items:center}
+.tl-search-input{flex:1;border:1px solid var(--border);border-radius:20px;padding:8px 14px;font-size:13px;outline:none;background:var(--white)}
+.tl-search-input:focus{border-color:var(--red)}
+.tl-older-hint{padding:12px;background:var(--white);border-radius:12px;text-align:center;font-size:12px;color:var(--text-light);margin-bottom:8px}
 .tl-card{background:var(--white);border-radius:12px;padding:12px;margin-bottom:6px;position:relative;border-left:3px solid var(--blue)}
 .tl-card.type-food{border-left-color:var(--red)}
 .tl-card.type-scenic{border-left-color:var(--blue)}
@@ -1192,13 +1200,48 @@ function renderTimeline(){
     document.getElementById('tl-done').textContent=timelineData.filter(function(r){return r.status==='done'}).length;
   }else{statsEl.style.display='none';filterEl.style.display='none'}
   if(!sorted.length){document.getElementById('timeline-content').innerHTML='<div class="empty-state"><div class="icon">📅</div><p>'+(timelineData.length?'当前筛选无结果':'还没有旅行打卡计划')+'</p></div>';return}
+  // 按日期分组
   var groups={};for(var i=0;i<sorted.length;i++){var d=sorted[i].date||'未定日期';if(!groups[d])groups[d]=[];groups[d].push(sorted[i])}
-  var dates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a)});
+  var allDates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a)});
+  
+  // 近8天日期列表（从今天往前推8天）
+  var today=new Date();var recent8=[];
+  for(var i=0;i<8;i++){var t=new Date(today);t.setDate(t.getDate()-i);recent8.push(t.toISOString().slice(0,10))}
+  
+  // 如果有日期搜索词，显示搜索结果
+  var searchDate=window._tlSearchDate||'';
+  
   var html='';
-  for(var di=0;di<dates.length;di++){
-    var dateKey=dates[di];var items=groups[dateKey];
-    html+='<div class="date-group"><div class="date-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+esc(dateKey)+'</div>';
-    // 日期汇总进度条
+  // 日期搜索栏
+  html+='<div class="tl-search-bar"><input class="tl-search-input" id="tl-date-search" type="date" value="'+esc(searchDate)+'" onchange="searchDateGroup(this.value)" placeholder="搜索日期"><button class="add-manual-btn" style="padding:6px 12px;font-size:12px" onclick="clearDateSearch()">全部</button></div>';
+  
+  // 筛选要显示的日期
+  var displayDates=[];var olderDates=[];
+  if(searchDate){
+    // 有搜索日期时，只显示该日期
+    if(groups[searchDate])displayDates=[searchDate];
+  }else{
+    // 无搜索时，只显示近8天
+    for(var i=0;i<allDates.length;i++){
+      if(recent8.indexOf(allDates[i])>=0){
+        displayDates.push(allDates[i]);
+      }else if(allDates[i]!=='未定日期'){
+        olderDates.push(allDates[i]);
+      }else{
+        displayDates.push(allDates[i]);
+      }
+    }
+  }
+  
+  // 渲染近8天的日期分组
+  for(var di=0;di<displayDates.length;di++){
+    var dateKey=displayDates[di];var items=groups[dateKey];
+    var isToday=dateKey===today.toISOString().slice(0,10);
+    var dateName=isToday?dateKey+' (今天)':dateKey;
+    var doneCount=items.filter(function(r){return r.status==='done'}).length;
+    html+='<div class="date-group" data-date="'+esc(dateKey)+'">';
+    html+='<div class="date-label" onclick="toggleDateGroup(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'+esc(dateName)+'<span style="margin-left:4px;font-size:11px;font-weight:400;color:var(--text-light)">'+doneCount+'/'+items.length+'</span><span class="toggle-icon">▼</span></div>';
+    html+='<div class="date-group-body">';
     html+=renderDayProgress(items);
     for(var j=0;j<items.length;j++){
       var r=items[j];var typeLabel=r.type==='food'?'吃':r.type==='scenic'?'玩':'住';var typeEmoji=r.type==='food'?'🍜':r.type==='scenic'?'🎡':'🏨';var isDone=r.status==='done';
@@ -1209,9 +1252,39 @@ function renderTimeline(){
       if(!isDone&&r.reason)html+='<div class="tl-reason">'+esc(r.reason)+'</div>';
       html+='<div class="tl-actions"><button class="tl-act-btn done-btn" onclick="toggleStatus('+r.id+')">'+(isDone?'取消完成':'完成打卡')+'</button><button class="tl-act-btn" onclick="editRecord('+r.id+')">编辑</button><button class="tl-act-btn del" onclick="deleteRecord('+r.id+')">删除</button></div></div>';
     }
-    html+='</div>';
+    html+='</div></div>';
   }
+  
+  // 如果有更早的日期，显示提示
+  if(!searchDate&&olderDates.length>0){
+    html+='<div class="tl-older-hint">还有 '+olderDates.length+' 个更早的日期记录<br>请使用上方日期搜索查看</div>';
+  }
+  
   document.getElementById('timeline-content').innerHTML=html;
+}
+
+// 日期分组收起/展开
+function toggleDateGroup(labelEl){
+  var body=labelEl.nextElementSibling;
+  var icon=labelEl.querySelector('.toggle-icon');
+  if(body.classList.contains('collapsed')){
+    body.classList.remove('collapsed');
+    body.style.maxHeight=body.scrollHeight+'px';
+    icon.classList.remove('collapsed');
+  }else{
+    body.style.maxHeight=body.scrollHeight+'px';
+    requestAnimationFrame(function(){body.classList.add('collapsed');icon.classList.add('collapsed')});
+  }
+}
+
+// 日期搜索
+function searchDateGroup(val){
+  window._tlSearchDate=val;
+  renderTimeline();
+}
+function clearDateSearch(){
+  window._tlSearchDate='';
+  renderTimeline();
 }
 
 // 渲染按日期汇总进度条
