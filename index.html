@@ -1237,7 +1237,7 @@ function renderTimeline(){
   if(searchDate){
     html+='<button class="tl-date-search-btn active" onclick="clearTimelineDateSearch()"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg>'+esc(searchDate)+'<span class=\"date-clear\">&times;</span></button>';
   }else{
-    html+='<label class="tl-date-search-btn" style="position:relative;cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>按日期搜<input id="tl-date-picker" type="date" onchange="doTimelineDateSearch(this.value)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0"></label>';
+    html+='<label class="tl-date-search-btn" style="position:relative;cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>按日期搜<input id="tl-date-picker" type="date" value="" onchange="doTimelineDateSearch(this.value)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0"></label>';
   }
   html+='</div>';
 
