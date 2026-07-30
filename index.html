@@ -194,7 +194,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC"
 .tl-progress-block.type-hotel{background:rgba(255,136,0,.15);color:var(--orange)}
 .tl-progress-block.is-done{opacity:1;font-weight:800}
 .tl-progress-block.not-done{opacity:.35}
-.tl-progress-hours{display:flex;justify-content:space-between;font-size:9px;color:var(--text-light);padding:0 2px}
+.tl-progress-hours{position:relative;height:16px;font-size:9px;color:var(--text-light);padding:0 2px;margin-top:2px}
 .tl-time-range{font-size:11px;color:var(--text-light);margin-left:6px}
 .tl-reason{font-size:11px;color:var(--red);margin-top:4px;font-style:italic;padding:4px 8px;background:var(--red-light);border-radius:4px}
 .tl-reason::before{content:'未完成原因：';font-weight:600}
@@ -228,19 +228,6 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC"
     </div>
     <div class="page" id="page-timeline">
       <div class="timeline-header"><h2>我的旅行时间线</h2><button class="add-manual-btn" onclick="showAddModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>手动添加</button></div>
-      <div id="timeline-stats" class="stats-row" style="display:none">
-        <div class="stat-pill"><div class="num" id="tl-total">0</div><div class="label">总计划</div></div>
-        <div class="stat-pill"><div class="num" id="tl-pending">0</div><div class="label">待打卡</div></div>
-        <div class="stat-pill"><div class="num" id="tl-done">0</div><div class="label">已打卡</div></div>
-      </div>
-      <div id="timeline-filter" class="filter-chips" style="display:none">
-        <span class="chip active" data-filter="all" onclick="filterTimeline('all',this)">全部</span>
-        <span class="chip" data-filter="food" onclick="filterTimeline('food',this)">吃</span>
-        <span class="chip" data-filter="scenic" onclick="filterTimeline('scenic',this)">玩</span>
-        <span class="chip" data-filter="hotel" onclick="filterTimeline('hotel',this)">住</span>
-        <span class="chip" data-filter="pending" onclick="filterTimeline('pending',this)">待打卡</span>
-        <span class="chip" data-filter="done" onclick="filterTimeline('done',this)">已打卡</span>
-      </div>
       <div id="timeline-content">
         <div class="empty-state"><div class="icon">📅</div><p>还没有旅行打卡计划</p><p style="font-size:12px;margin-top:4px">搜索城市后一键添加，或手动创建</p></div>
       </div>
@@ -606,6 +593,11 @@ var searchCache={};
 function init(){
   loadTimeline();
   document.getElementById('search-input').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch()});
+  // 添加弹窗中，切换日期时自动补齐开始时间
+  document.getElementById('m-date').addEventListener('change',function(){
+    var d=this.value;var autoStart=getNextStartTime(d);
+    if(autoStart)document.getElementById('m-start').value=autoStart;
+  });
   renderHotCities();
   renderHotTags();
   renderTimeline();
@@ -1109,26 +1101,51 @@ function showAppDialog(appName){
 function closeAppDialog(){document.getElementById('dialog-bg').style.display='none';document.getElementById('app-dialog').style.display='none'}
 
 // ============ 时间线管理 ============
+// 根据日期自动推算下一个行程的起始时间
+function getNextStartTime(date){
+  if(!date)return '';
+  var dayItems=timelineData.filter(function(t){return t.date===date&&t.endTime});
+  if(dayItems.length===0)return '';
+  // 找到该日期最大的结束时间
+  var maxEnd=0;
+  for(var i=0;i<dayItems.length;i++){
+    var e=parseInt(dayItems[i].endTime);
+    if(!isNaN(e)&&e>maxEnd)maxEnd=e;
+  }
+  return maxEnd>0?String(maxEnd):'';
+}
+
 function addToTimeline(city,name,type){
   // 防止重复添加
   var exists=timelineData.some(function(t){return t.name===name&&t.city===city});
   if(exists){toast('已在打卡计划中');return}
-  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:type,date:new Date().toISOString().slice(0,10),note:'',reason:'',startTime:'',endTime:'',status:'pending',createdAt:new Date().toISOString()};
-  timelineData.push(rec);saveTimeline();renderTimeline();toast('已加入打卡计划');
+  var today=new Date().toISOString().slice(0,10);
+  var autoStart=getNextStartTime(today);
+  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:type,date:today,note:'',reason:'',startTime:autoStart,endTime:'',status:'pending',createdAt:new Date().toISOString()};
+  timelineData.push(rec);saveTimeline();renderTimeline();toast(autoStart?'已加入，自动接续'+autoStart+'时':'已加入打卡计划');
 }
 // 点击+打卡按钮后，加入时间线并让按钮变暗
 function addToTimelineAndMark(city,name,type,btn){
   var exists=timelineData.some(function(t){return t.name===name&&t.city===city});
   if(exists){toast('已在打卡计划中');return}
-  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:type,date:new Date().toISOString().slice(0,10),note:'',reason:'',startTime:'',endTime:'',status:'pending',createdAt:new Date().toISOString()};
-  timelineData.push(rec);saveTimeline();renderTimeline();toast('已加入打卡计划');
+  var today=new Date().toISOString().slice(0,10);
+  var autoStart=getNextStartTime(today);
+  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:type,date:today,note:'',reason:'',startTime:autoStart,endTime:'',status:'pending',createdAt:new Date().toISOString()};
+  timelineData.push(rec);saveTimeline();renderTimeline();toast(autoStart?'已加入，自动接续'+autoStart+'时':'已加入打卡计划');
   if(btn){btn.className='app-btn app-btn-added';btn.textContent='已收藏';btn.onclick=null}
 }
 function showAddModal(){
   selectedType='food';
   document.getElementById('m-city').value=currentCity||'';
-  document.getElementById('m-name').value='';document.getElementById('m-date').value='';document.getElementById('m-note').value='';
-  document.getElementById('m-start').value='';document.getElementById('m-end').value='';document.getElementById('m-reason').value='';
+  document.getElementById('m-name').value='';
+  var today=new Date().toISOString().slice(0,10);
+  document.getElementById('m-date').value=today;
+  document.getElementById('m-note').value='';
+  document.getElementById('m-reason').value='';
+  // 自动补齐：预填当天最后一个行程的结束时间作为开始时间
+  var autoStart=getNextStartTime(today);
+  document.getElementById('m-start').value=autoStart;
+  document.getElementById('m-end').value='';
   updateTypePicker();openModal('modal-add');
 }
 function pickType(t){selectedType=t;updateTypePicker()}
@@ -1139,26 +1156,17 @@ function updateTypePicker(){
 function saveManual(){
   var city=document.getElementById('m-city').value.trim();var name=document.getElementById('m-name').value.trim();
   if(!city||!name){toast('请填写城市和地点名称');return}
+  var mDate=document.getElementById('m-date').value||new Date().toISOString().slice(0,10);
   var mStart=document.getElementById('m-start').value.trim();var mEnd=document.getElementById('m-end').value.trim();
-  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:selectedType,date:document.getElementById('m-date').value||new Date().toISOString().slice(0,10),note:document.getElementById('m-note').value.trim(),reason:document.getElementById('m-reason').value.trim(),startTime:mStart,endTime:mEnd,status:'pending',createdAt:new Date().toISOString()};
-  timelineData.push(rec);saveTimeline();renderTimeline();closeModal('modal-add');toast('打卡计划已添加');
+  // 自动补齐：如果没有手动填开始时间，自动接续该日期最后一个行程
+  if(!mStart){mStart=getNextStartTime(mDate)}
+  var rec={id:Date.now()+Math.floor(Math.random()*10000),city:city,name:name,type:selectedType,date:mDate,note:document.getElementById('m-note').value.trim(),reason:document.getElementById('m-reason').value.trim(),startTime:mStart,endTime:mEnd,status:'pending',createdAt:new Date().toISOString()};
+  timelineData.push(rec);saveTimeline();renderTimeline();closeModal('modal-add');toast(mStart?'已添加，自动接续'+mStart+'时':'打卡计划已添加');
   switchTab('timeline',document.querySelector('[data-tab="timeline"]'));
 }
 function renderTimeline(){
   var sorted=timelineData.slice().sort(function(a,b){return(b.date||'').localeCompare(a.date||'')});
-  if(tlFilter==='food')sorted=sorted.filter(function(r){return r.type==='food'});
-  else if(tlFilter==='scenic')sorted=sorted.filter(function(r){return r.type==='scenic'});
-  else if(tlFilter==='hotel')sorted=sorted.filter(function(r){return r.type==='hotel'});
-  else if(tlFilter==='pending')sorted=sorted.filter(function(r){return r.status==='pending'});
-  else if(tlFilter==='done')sorted=sorted.filter(function(r){return r.status==='done'});
-  var statsEl=document.getElementById('timeline-stats');var filterEl=document.getElementById('timeline-filter');
-  if(timelineData.length>0){
-    statsEl.style.display='flex';filterEl.style.display='flex';
-    document.getElementById('tl-total').textContent=timelineData.length;
-    document.getElementById('tl-pending').textContent=timelineData.filter(function(r){return r.status==='pending'}).length;
-    document.getElementById('tl-done').textContent=timelineData.filter(function(r){return r.status==='done'}).length;
-  }else{statsEl.style.display='none';filterEl.style.display='none'}
-  if(!sorted.length){document.getElementById('timeline-content').innerHTML='<div class="empty-state"><div class="icon">📅</div><p>'+(timelineData.length?'当前筛选无结果':'还没有旅行打卡计划')+'</p></div>';return}
+  if(!sorted.length){document.getElementById('timeline-content').innerHTML='<div class="empty-state"><div class="icon">📅</div><p>还没有旅行打卡计划</p></div>';return}
   var groups={};for(var i=0;i<sorted.length;i++){var d=sorted[i].date||'未定日期';if(!groups[d])groups[d]=[];groups[d].push(sorted[i])}
   var dates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a)});
   var html='';
@@ -1193,6 +1201,8 @@ function renderDayProgress(items){
     if(!isNaN(s)&&!isNaN(e)){hasTime=true;if(s<minH)minH=s;if(e>maxH)maxH=e}
   }
   if(!hasTime){minH=6;maxH=23}
+  // 扩展范围到整点，前后各留1小时余量
+  minH=Math.max(0,minH-1);maxH=Math.min(23,maxH+1);
   if(minH>=maxH){minH=6;maxH=23}
   var range=maxH-minH;var trackWidth=100;
   var html='<div class="tl-progress-bar">';
@@ -1219,8 +1229,14 @@ function renderDayProgress(items){
     html+='<div class="tl-progress-block '+typeCls+' '+doneCls+'" style="left:'+leftPct.toFixed(1)+'%;width:'+widthPct.toFixed(1)+'%" title="'+esc(r.name)+' ('+(r.startTime||'?')+'-'+(r.endTime||'?')+'时)">'+esc(shortName)+'</div>';
   }
   html+='</div>';
-  // 时间刻度
-  html+='<div class="tl-progress-hours"><span>'+minH+':00</span><span>'+Math.round((minH+range/2))+':00</span><span>'+maxH+':00</span></div>';
+  // 时间刻度：每隔2小时标注，最多显示6个刻度
+  html+='<div class="tl-progress-hours">';
+  var step=range<=8?1:range<=16?2:3;
+  for(var h=minH;h<=maxH;h+=step){
+    var pos=((h-minH)/range)*100;
+    html+='<span style="position:absolute;left:'+pos.toFixed(1)+'%;transform:translateX(-50%)">'+h+':00</span>';
+  }
+  html+='</div>';
   html+='</div>';
   return html;
 }
