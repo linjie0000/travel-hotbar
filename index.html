@@ -7,7 +7,6 @@
 <meta name="description" content="实时搜索小红书排名，支持所有城市和地点">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="manifest" href="data:application/json,{}">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
@@ -1113,7 +1112,7 @@ function filterTimeline(f,el){tlFilter=f;document.querySelectorAll('.chip').forE
 function exportData(){
   if(!timelineData.length){toast('暂无数据可导出');return}
   var bom='\uFEFF';var csv=bom+'城市,地点名称,类型,计划日期,备注,状态\n';var typeMap={food:'美食',scenic:'景点',hotel:'酒店'};
-  for(var i=0;i<timelineData.length;i++){var r=timelineData[i];csv+='"'+(r.city||'').replace(/"/g,'""')+'","'+(r.name||'').replace(/"/g,'""')+'",'+(typeMap[r.type]||r.type)+','+(r.date||'')+',"'+(r.note||'').replace(/"/g,'""')+'",'++(r.status==='done'?'已打卡':'待打卡')+'\n'}
+  for(var i=0;i<timelineData.length;i++){var r=timelineData[i];csv+='"'+(r.city||'').replace(/"/g,'""')+'","'+(r.name||'').replace(/"/g,'""')+'",'+(typeMap[r.type]||r.type)+','+(r.date||'')+',"'+(r.note||'').replace(/"/g,'""')+'",'+(r.status==='done'?'已打卡':'待打卡')+'\n'}
   var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='旅行打卡_'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('导出成功');
 }
 function switchTab(tab,btn){document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});document.getElementById('page-'+tab).classList.add('active');document.querySelectorAll('.tab-item').forEach(function(b){b.classList.remove('active')});btn.classList.add('active')}
